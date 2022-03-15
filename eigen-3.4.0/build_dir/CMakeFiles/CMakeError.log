@@ -1,0 +1,206 @@
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_Wshorten64to32 failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_36f47/fast"
+make: Warning: File 'Makefile' has modification time 0.027 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_36f47.dir/build.make CMakeFiles/cmTC_36f47.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_36f47.dir/flags.make' has modification time 0.0061 s in the future
+Building CXX object CMakeFiles/cmTC_36f47.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -DCOMPILER_SUPPORT_Wshorten64to32 -Werror   -Wshorten-64-to-32 -o CMakeFiles/cmTC_36f47.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-Wshorten-64-to-32'
+CMakeFiles/cmTC_36f47.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_36f47.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_36f47.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_36f47/fast' failed
+make: *** [cmTC_36f47/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_Wenumconversion failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_265f3/fast"
+make: Warning: File 'Makefile' has modification time 0.023 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_265f3.dir/build.make CMakeFiles/cmTC_265f3.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_265f3.dir/progress.make' has modification time 0.042 s in the future
+Building CXX object CMakeFiles/cmTC_265f3.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -DCOMPILER_SUPPORT_Wenumconversion -Werror   -Wenum-conversion -o CMakeFiles/cmTC_265f3.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-Wenum-conversion'
+CMakeFiles/cmTC_265f3.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_265f3.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_265f3.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_265f3/fast' failed
+make: *** [cmTC_265f3/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_Wcpp11extensions failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_8fd64/fast"
+make: Warning: File 'Makefile' has modification time 0.018 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_8fd64.dir/build.make CMakeFiles/cmTC_8fd64.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_8fd64.dir/progress.make' has modification time 0.038 s in the future
+Building CXX object CMakeFiles/cmTC_8fd64.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -DCOMPILER_SUPPORT_Wcpp11extensions -Werror   -Wc++11-extensions -o CMakeFiles/cmTC_8fd64.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-Wc++11-extensions'
+CMakeFiles/cmTC_8fd64.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_8fd64.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_8fd64.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_8fd64/fast' failed
+make: *** [cmTC_8fd64/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_wd981 failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_71840/fast"
+make: Warning: File 'Makefile' has modification time 0.016 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_71840.dir/build.make CMakeFiles/cmTC_71840.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_71840.dir/progress.make' has modification time 0.042 s in the future
+Building CXX object CMakeFiles/cmTC_71840.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wdouble-promotion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing -DCOMPILER_SUPPORT_wd981 -Werror   -wd981 -o CMakeFiles/cmTC_71840.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-wd981'
+CMakeFiles/cmTC_71840.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_71840.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_71840.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_71840/fast' failed
+make: *** [cmTC_71840/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_wd2304 failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_4fc50/fast"
+make: Warning: File 'Makefile' has modification time 0.029 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_4fc50.dir/build.make CMakeFiles/cmTC_4fc50.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_4fc50.dir/flags.make' has modification time 0.0096 s in the future
+Building CXX object CMakeFiles/cmTC_4fc50.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wdouble-promotion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing -DCOMPILER_SUPPORT_wd2304 -Werror   -wd2304 -o CMakeFiles/cmTC_4fc50.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-wd2304'
+CMakeFiles/cmTC_4fc50.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_4fc50.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_4fc50.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_4fc50/fast' failed
+make: *** [cmTC_4fc50/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_STRICTANSI failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_7c2cb/fast"
+make: Warning: File 'Makefile' has modification time 0.037 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_7c2cb.dir/build.make CMakeFiles/cmTC_7c2cb.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_7c2cb.dir/flags.make' has modification time 0.017 s in the future
+Building CXX object CMakeFiles/cmTC_7c2cb.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wdouble-promotion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing -DCOMPILER_SUPPORT_STRICTANSI -Werror   -strict-ansi -o CMakeFiles/cmTC_7c2cb.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-strict-ansi'
+CMakeFiles/cmTC_7c2cb.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_7c2cb.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_7c2cb.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_7c2cb/fast' failed
+make: *** [cmTC_7c2cb/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Performing C++ SOURCE FILE Test COMPILER_SUPPORT_Qunusedarguments failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_5a293/fast"
+make: Warning: File 'Makefile' has modification time 0.036 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_5a293.dir/build.make CMakeFiles/cmTC_5a293.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_5a293.dir/flags.make' has modification time 0.016 s in the future
+Building CXX object CMakeFiles/cmTC_5a293.dir/src.cxx.o
+/usr/bin/c++    -std=c++03 -pedantic -Wall -Wextra -Wundef -Wcast-align -Wchar-subscripts -Wnon-virtual-dtor -Wunused-local-typedefs -Wpointer-arith -Wwrite-strings -Wformat-security -Wlogical-op -Wdouble-promotion -Wshadow -Wno-psabi -Wno-variadic-macros -Wno-long-long -fno-check-new -fno-common -fstrict-aliasing -DCOMPILER_SUPPORT_Qunusedarguments -Werror   -Qunused-arguments -o CMakeFiles/cmTC_5a293.dir/src.cxx.o -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/src.cxx
+c++: error: unrecognized command line option '-Qunused-arguments'
+CMakeFiles/cmTC_5a293.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_5a293.dir/src.cxx.o' failed
+make[1]: *** [CMakeFiles/cmTC_5a293.dir/src.cxx.o] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_5a293/fast' failed
+make: *** [cmTC_5a293/fast] Error 2
+
+Source file was:
+int main() { return 0; }
+Looking for a Fortran compiler failed with the following output:
+-- The Fortran compiler identification is unknown
+CMake Error at CMakeLists.txt:2 (project):
+  No CMAKE_Fortran_COMPILER could be found.
+
+  Tell CMake where to find the compiler by setting either the environment
+  variable "FC" or the CMake cache entry CMAKE_Fortran_COMPILER to the full
+  path to the compiler, or to the compiler name if it is in the PATH.
+
+
+-- Configuring incomplete, errors occurred!
+See also "/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/test/CMakeFiles/CheckFortran/CMakeFiles/CMakeOutput.log".
+See also "/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/test/CMakeFiles/CheckFortran/CMakeFiles/CMakeError.log".
+
+Determining if the pthread_create exist failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_d03b1/fast"
+make: Warning: File 'Makefile' has modification time 0.023 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_d03b1.dir/build.make CMakeFiles/cmTC_d03b1.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_d03b1.dir/flags.make' has modification time 0.0026 s in the future
+Building C object CMakeFiles/cmTC_d03b1.dir/CheckSymbolExists.c.o
+/usr/bin/cc    -o CMakeFiles/cmTC_d03b1.dir/CheckSymbolExists.c.o   -c /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+Linking C executable cmTC_d03b1
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_d03b1.dir/link.txt --verbose=1
+/usr/bin/cc      CMakeFiles/cmTC_d03b1.dir/CheckSymbolExists.c.o  -o cmTC_d03b1 
+CMakeFiles/cmTC_d03b1.dir/CheckSymbolExists.c.o: In function `main':
+CheckSymbolExists.c:(.text+0x16): undefined reference to `pthread_create'
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_d03b1.dir/build.make:97: recipe for target 'cmTC_d03b1' failed
+make[1]: *** [cmTC_d03b1] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_d03b1/fast' failed
+make: *** [cmTC_d03b1/fast] Error 2
+
+File /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <pthread.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef pthread_create
+  return ((int*)(&pthread_create))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_aa95f/fast"
+make: Warning: File 'Makefile' has modification time 0.023 s in the future
+/usr/bin/make -f CMakeFiles/cmTC_aa95f.dir/build.make CMakeFiles/cmTC_aa95f.dir/build
+make[1]: Entering directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+make[1]: Warning: File 'CMakeFiles/cmTC_aa95f.dir/flags.make' has modification time 0.0016 s in the future
+Building C object CMakeFiles/cmTC_aa95f.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_aa95f.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.10/Modules/CheckFunctionExists.c
+Linking C executable cmTC_aa95f
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_aa95f.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    CMakeFiles/cmTC_aa95f.dir/CheckFunctionExists.c.o  -o cmTC_aa95f -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+CMakeFiles/cmTC_aa95f.dir/build.make:97: recipe for target 'cmTC_aa95f' failed
+make[1]: *** [cmTC_aa95f] Error 1
+make[1]: Leaving directory '/mnt/d/Projects/knn-study/eigen-3.4.0/build_dir/CMakeFiles/CMakeTmp'
+Makefile:126: recipe for target 'cmTC_aa95f/fast' failed
+make: *** [cmTC_aa95f/fast] Error 2
+
+
