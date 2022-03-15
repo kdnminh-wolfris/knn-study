@@ -1,35 +1,14 @@
-# Prerequisites
-*.d
-
 # Compiled Object files
-*.slo
-*.lo
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
 
 # Executables
 *.exe
-*.out
-*.app
 
-.vscode
-data
+# VSCode files
+.vscode/
+
+# Datasets
+data/
+
+# Unignore all in eigen-3.4.0
+!/eigen-3.4.0/**
