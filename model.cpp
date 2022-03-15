@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <math.h>
 #include <thread>
+#include <cblas.h>
 
 #include "model.h"
 
@@ -14,14 +15,11 @@ bool KnnModel::ReadData(string path) {
     ifstream fi(path);
     fi >> n >> d >> k;
     // n = 1000;
-    
-    points.resize(n, d);
-    // points.resize(n, vector<double>(d));
 
+    points = new double[n * d];
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < d; ++j)
-            // fi >> points[i][j];
-            fi >> points(i, j);
+            fi >> points[i * d + j];
     fi.close();
     return true;
 }
@@ -145,29 +143,31 @@ void KnnModel::_SolveVer3() {
 
     const int block_size = 500;
     const int n_blocks = (n + block_size - 1) / block_size;
-    vector<MatrixXd> blocks(n_blocks);
+    vector<double*> blocks(n_blocks);
     for (int i = 0; i < n_blocks; ++i) {
-        blocks[i].resize(0, d);
-        for (int j = 0, lim = min(block_size, n - i * block_size); j < lim; ++j) {
-            blocks[i].conservativeResize(blocks[i].rows() + 1, blocks[i].cols());
-            blocks[i].row(blocks[i].rows() - 1) = points.row(i * block_size + j);
-        }
+        blocks[i] = new double[min(block_size, n - i * block_size) * d];
+        for (int j = 0, lim = min(block_size, n - i * block_size); j < lim; ++j)
+            for (int k = 0; k < d; ++k)
+                blocks[i][j * d + k] = points[(i * block_size + j) * d + k];
     }
 
     cout << "Done creating blocks" << endl;
 
+    double* foo = new double[block_size * block_size];
     for (int i = 0; i < n_blocks; ++i) {
         cout << "i = " << i << ' ';
         auto start = chrono::high_resolution_clock::now();
 
         for (int j = i; j < n_blocks; ++j) {
-            MatrixXd foo = blocks[i] * blocks[j].transpose();
+            int i_size(i < n_blocks - 1 ? block_size : n - (n_blocks - 1) * block_size);
+            int j_size(j < n_blocks - 1 ? block_size : n - (n_blocks - 1) * block_size);
+            cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, blocks[i], d, blocks[j], d, 0, foo, j_size);
             
-            for (int ii = 0; ii < foo.rows(); ++ii)
-                for (int jj = (i < j ? 0 : ii + 1); jj < foo.cols(); ++jj) {
+            for (int ii = 0; ii < i_size; ++ii)
+                for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
                     int i_index = i * block_size + ii;
                     int j_index = j * block_size + jj;
-                    double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * foo(ii, jj);
+                    double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * foo[ii * j_size + jj];
 
                     // insert heap[i]
                     if (j_index <= k || dist < dist_from_to[i_index][0].first)
@@ -183,6 +183,7 @@ void KnnModel::_SolveVer3() {
         auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
         cout << duration.count() / 1000000 << '.' << duration.count() % 1000000 << 's' << endl;
     }
+    delete[] foo;
 
     cout << "Done solving" << endl;
 
@@ -198,6 +199,9 @@ void KnnModel::_SolveVer3() {
         delete[] dist_from_to[i];
     delete[] dist_from_to;
 
+    for (double* blk: blocks)
+        delete[] blk;
+
     cout << "Done unallocating memory" << endl;
 
     // fo.close();
@@ -205,24 +209,21 @@ void KnnModel::_SolveVer3() {
 
 
 double KnnModel::Distance(int i, int j) {
-    // double s(0);
-    // for (int x = 0; x < d; ++x)
-    //     s += points[i][x] * points[j][x];
-    // return sum_of_squared[i] + sum_of_squared[j] - 2 * s;
-
-    return (points.row(i) - points.row(j)).norm();
-
-    // return sum_of_squared[i] + sum_of_squared[j] - 2 * psum(i, j);
+    double s(0);
+    for (int x = 0; x < d; ++x)
+        s += points[i * d + x] * points[j * d + x];
+    return sum_of_squared[i] + sum_of_squared[j] - 2 * s;
 }
 
 void KnnModel::PreCalculationOfDistance() {
     sum_of_squared.resize(n, 0);
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < d; ++j)
-            // sum_of_squared[i] += points[i][j] * points[i][j];
-            sum_of_squared[i] += points(i, j) * points(i, j);
-    
-    // psum = points * points.transpose();
+            sum_of_squared[i] += points[i * d + j] * points[i * d + j];
+}
+
+KnnModel::~KnnModel() {
+    delete[] points;
 }
 
 template<typename T>

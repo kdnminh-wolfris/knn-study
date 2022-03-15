@@ -14,9 +14,7 @@
 
 #include <iostream>
 #include <vector>
-#include <Eigen/Dense>
 
-using namespace Eigen;
 using namespace std;
 
 /**
@@ -58,12 +56,14 @@ public:
      */
     void Output(string path);
 
+    ~KnnModel();
+
 private:
     int n; // number of data points
     int d; // number of dimensions
     int k; // number of nearest neighbours to find
 
-    MatrixXd points; // array of data points
+    double* points; // array of data points
     // vector<vector<double>> points;
 
     Algorithm algorithm; // current algorithm to solve

@@ -1,7 +1,8 @@
 #include "model.h"
 #include <chrono>
+#include <cblas.h>
 
-const string dataset = "GSE128223";
+const string dataset = "GSE156793";
 const Algorithm solver = ver3;
 
 int main() {
@@ -9,11 +10,11 @@ int main() {
 
     cout << "\nInputting data..." << endl;
     KnnModel model;
-    model.ReadData(dataset + "/data/inp.inp");
+    model.ReadData("./data/" + dataset + "/inp.inp");
     model.SetAlgorithm(solver);
     cout << "Done inputting" << endl;
 
-    setNbThreads(1);
+    openblas_set_num_threads(1);
     
     cout << "\nStart solving..." << endl;
     auto start = chrono::high_resolution_clock::now();
@@ -24,6 +25,6 @@ int main() {
     cout << "Duration: " << duration.count() / 1000000 << '.' << duration.count() % 1000000 << 's' << endl;
 
     cout << "\nOutputing results..." << endl;
-    model.Output(dataset + "/data/out.out");
+    model.Output("./data/" + dataset + "/out.out");
     cout << "Done outputing" << endl;
 }
