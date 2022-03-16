@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <math.h>
@@ -67,6 +68,7 @@ void KnnModel::Solve() {
 
 inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     const int n_blocks = (n + block_size - 1) / block_size;
+    const int last_block_size = n - (n_blocks - 1) * block_size;
 
     // Allocate memory
     double** blocks = new double*[n_blocks];
@@ -80,8 +82,8 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     {
         const int i = n_blocks - 1;
         const int i_base = i * block_size;
-        blocks[i] = new double[(n - i_base) * d];
-        for (int j = 0, lim = n - i_base; j < lim; ++j)
+        blocks[i] = new double[last_block_size * d];
+        for (int j = 0; j < last_block_size; ++j)
             for (int k = 0; k < d; ++k)
                 blocks[i][j * d + k] = points[(i_base + j) * d + k];
     }
@@ -93,13 +95,13 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
         for (int j = i; j < n_blocks - 1; ++j)
             PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, block_size, foo, heap);
         const int j = n_blocks - 1;
-        PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, n - j * block_size, foo, heap);        
+        PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, last_block_size, foo, heap);        
     }
     {
         const int i = n_blocks - 1;
-        for (int j(i); j < n_blocks - 1; ++j)
-            PushBlockToHeap(blocks[i], i, n - i * block_size, blocks[j], j, block_size, foo, heap);
-        PushBlockToHeap(blocks[i], i, n - i * block_size, blocks[i], i, n - i * block_size, foo, heap);
+        for (int j = i; j < n_blocks - 1; ++j)
+            PushBlockToHeap(blocks[i], i, last_block_size, blocks[j], j, block_size, foo, heap);
+        PushBlockToHeap(blocks[i], i, last_block_size, blocks[i], i, last_block_size, foo, heap);
     }
 
     // Deallocate memory
