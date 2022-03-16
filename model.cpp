@@ -24,31 +24,6 @@ bool KnnModel::ReadData(string path) {
     return true;
 }
 
-void KnnModel::SetAlgorithm(Algorithm algo) {
-    algorithm = algo;
-}
-
-void KnnModel::Solve() {
-    results.resize(n, vector<int>(k, -1));
-    PreCalculationOfDistance();
-    switch (algorithm) {
-        case ver1:
-            _SolveVer1();
-            break;
-        case ver1_2:
-            _SolveVer1_2();
-            break;
-        case ver2:
-            _SolveVer2();
-            break;
-        case ver3:
-            _SolveVer3();
-            break;
-        default:
-            break;
-    }
-}
-
 void KnnModel::Output(string path) {
     ofstream fo(path);
     if (results.empty())
@@ -63,85 +38,22 @@ void KnnModel::Output(string path) {
     fo.close();
 }
 
-void KnnModel::_SolveVer1() {
-    pair<double, int>* distance_to = new pair<double, int>[n];
-    for (int i = 0; i < n; ++i) {
-        distance_to[i] = {-1, i};
-        for (int j = 0; j < n; ++j)
-            if (i != j)
-                distance_to[j] = {Distance(i, j), j};
-        sort(distance_to, distance_to + n);
-        for (int j = 1; j <= k; ++j)
-            results[i][j - 1] = distance_to[j].second;
-    }
-    delete[] distance_to;
+void KnnModel::PreProcessing() {
+    results.resize(n, vector<int>(k, -1));
+    PreCalculationOfDistance();
 }
 
-void KnnModel::_SolveVer1_2() {
-    pair<double, int>** distance_to = new pair<double, int>*[n];
-    for (int i = 0; i < n; ++i)
-        distance_to[i] = new pair<double, int>[n];
-    for (int i = 0; i < n; ++i) {
-        distance_to[i][i] = {-1, i};
-        for (int j = i + 1; j < n; ++j) {
-            double dist = Distance(i, j);
-            distance_to[i][j] = {dist, j};
-            distance_to[j][i] = {dist, i};
-        }
-        sort(distance_to[i], distance_to[i] + n);
-        for (int j = 1; j <= k; ++j)
-            results[i][j - 1] = distance_to[i][j].second;
-    }
-    for (int i = 0; i < n; ++i)
-        delete[] distance_to[i];
-    delete[] distance_to;
-}
+void KnnModel::Solve() {
+    PreProcessing();
 
-void KnnModel::_SolveVer2() {
-    pair<double, int>** dist_from_to = new pair<double, int>*[n];
-    for (int i = 0; i < n; ++i)
-        dist_from_to[i] = new pair<double, int>[k];
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            const double dist(Distance(i, j));
-            
-            // insert heap[i]
-            if (j <= k || dist < dist_from_to[i][0].first) {
-                if (j > k)
-                    pop_heap(dist_from_to[i], dist_from_to[i] + k);
-                dist_from_to[i][min(j, k) - 1] = {dist, j};
-                push_heap(dist_from_to[i], dist_from_to[i] + min(j, k));
-            }
-
-            // insert heap[j]
-            if (i < k || dist < dist_from_to[j][0].first) {
-                if (i >= k)
-                    pop_heap(dist_from_to[j], dist_from_to[j] + k);
-                dist_from_to[j][min(i, k - 1)] = {dist, i};
-                push_heap(dist_from_to[j], dist_from_to[j] + min(i + 1, k));
-            }
-        }
-
-        // get results for point i
-        sort_heap(dist_from_to[i], dist_from_to[i] + k);
-        for (int j = 0; j < k; ++j)
-            results[i][j] = dist_from_to[i][j].second;
-    }
-    for (int i = 0; i < n; ++i)
-        delete[] dist_from_to[i];
-    delete[] dist_from_to;
-}
-
-void KnnModel::_SolveVer3() {
     // ofstream fo("debug.out");
 
     pair<double, int>** dist_from_to = new pair<double, int>*[n];
     for (int i = 0; i < n; ++i)
         dist_from_to[i] = new pair<double, int>[k];
 
-    cout << "Done allocating memory for heaps" << endl;
+    // cout << "Done allocating memory for heaps" << endl;
 
-    const int block_size = 500;
     const int n_blocks = (n + block_size - 1) / block_size;
     vector<double*> blocks(n_blocks);
     for (int i = 0; i < n_blocks; ++i) {
@@ -151,12 +63,12 @@ void KnnModel::_SolveVer3() {
                 blocks[i][j * d + k] = points[(i * block_size + j) * d + k];
     }
 
-    cout << "Done creating blocks" << endl;
+    // cout << "Done creating blocks" << endl;
 
     double* foo = new double[block_size * block_size];
     for (int i = 0; i < n_blocks; ++i) {
-        cout << "i = " << i << ' ';
-        auto start = chrono::high_resolution_clock::now();
+        // cout << "i = " << i << ' '; cout.flush();
+        // auto start = chrono::high_resolution_clock::now();
 
         for (int j = i; j < n_blocks; ++j) {
             int i_size(i < n_blocks - 1 ? block_size : n - (n_blocks - 1) * block_size);
@@ -179,13 +91,13 @@ void KnnModel::_SolveVer3() {
                 }
         }
         
-        auto stop = chrono::high_resolution_clock::now();
-        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-        cout << duration.count() / 1000000 << '.' << duration.count() % 1000000 << 's' << endl;
+        // auto stop = chrono::high_resolution_clock::now();
+        // auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+        // fo << duration.count() / 1000000 << '.' << duration.count() % 1000000 << 's' << endl;
     }
     delete[] foo;
 
-    cout << "Done solving" << endl;
+    // cout << "Done solving" << endl;
 
     for (int i = 0; i < n; ++i) {
         sort_heap(dist_from_to[i], dist_from_to[i] + k);
@@ -193,7 +105,7 @@ void KnnModel::_SolveVer3() {
             results[i][j] = dist_from_to[i][j].second;
     }
 
-    cout << "Done getting results" << endl;
+    // cout << "Done getting results" << endl;
 
     for (int i = 0; i < n; ++i)
         delete[] dist_from_to[i];
@@ -202,17 +114,9 @@ void KnnModel::_SolveVer3() {
     for (double* blk: blocks)
         delete[] blk;
 
-    cout << "Done unallocating memory" << endl;
+    // cout << "Done unallocating memory" << endl;
 
     // fo.close();
-}
-
-
-double KnnModel::Distance(int i, int j) {
-    double s(0);
-    for (int x = 0; x < d; ++x)
-        s += points[i * d + x] * points[j * d + x];
-    return sum_of_squared[i] + sum_of_squared[j] - 2 * s;
 }
 
 void KnnModel::PreCalculationOfDistance() {
@@ -220,6 +124,11 @@ void KnnModel::PreCalculationOfDistance() {
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < d; ++j)
             sum_of_squared[i] += points[i * d + j] * points[i * d + j];
+}
+
+void KnnModel::Clean() {
+    results.clear();
+    sum_of_squared.clear();
 }
 
 KnnModel::~KnnModel() {

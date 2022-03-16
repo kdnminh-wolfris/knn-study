@@ -17,14 +17,6 @@
 
 using namespace std;
 
-/**
- * @brief List of knn algorithms to use
- * 
- */
-enum Algorithm {
-    ver1, ver1_2, ver2, ver3
-};
-
 class KnnModel {
 public:
     KnnModel();
@@ -38,13 +30,6 @@ public:
     bool ReadData(string path);
 
     /**
-     * @brief Set knn algorithm for model.
-     * 
-     * @param algo knn algorithm
-     */
-    void SetAlgorithm(Algorithm algo);
-
-    /**
      * @brief Execute the current algorithm to solve knn problem.
      * 
      */
@@ -56,6 +41,8 @@ public:
      */
     void Output(string path);
 
+    void Clean();
+
     ~KnnModel();
 
 private:
@@ -63,48 +50,15 @@ private:
     int d; // number of dimensions
     int k; // number of nearest neighbours to find
 
-    double* points; // array of data points
-    // vector<vector<double>> points;
+    int block_size = 500; // size of each block for processing matrix multiplication
 
-    Algorithm algorithm; // current algorithm to solve
+    double* points; // array of data points
 
     vector<vector<int>> results; // list of indexes of k nearest neighbours for each data point
     
     vector<double> sum_of_squared; // sum of squared points[i][j] for pre-calculation of distances
 
-    /**
-     * @brief Naive O(N^2 * d) solution
-     * 
-     */
-    void _SolveVer1();
-
-    /**
-     * @brief Naive solution with symmetrically calculating and storing distances, O(N(N - 1)/2 * d)
-     * 
-     */
-    void _SolveVer1_2();
-
-    /**
-     * @brief Using heap structure to store exactly k nearest neighbours for each point
-     * 
-     */
-    void _SolveVer2();
-
-    /**
-     * @brief Dividing the data matrix into blocks and performing matrix multiplication by using Eigen library
-     * and storing results using heap structures
-     * 
-     */
-    void _SolveVer3();
-
-    /**
-     * @brief Calculate the Euclidean distance between points indexed i and j.
-     * 
-     * @param a first data point
-     * @param b second data point
-     * @return the distance between data points
-     */
-    double Distance(int i, int j);
+    void PreProcessing();    
     void PreCalculationOfDistance();
 };
 
