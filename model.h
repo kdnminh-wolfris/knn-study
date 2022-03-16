@@ -60,18 +60,18 @@ private:
 
     void PreProcessing();    
     void PreCalculationOfDistance();
+
+    void SolveForHeaps(pair<double, int>** heap);
+    void PushBlockToHeap(double* i_block, int i, int i_size, double* j_block, int j, int j_size, double* sum_of_products, pair<double, int>** heap);
 };
 
 template<typename T>
-void push_heap(T* it_begin, T* it_end);
+void push_heap(T* it_begin, T* it_end, int size_lim, T val);
 
 template<typename T>
 void pop_heap(T* it_begin, T* it_end);
 
 template<typename T>
 void sort_heap(T* it_begin, T* it_end);
-
-template<typename T>
-void push_heap(T* it_begin, T* it_end, int size_lim, T val);
 
 #endif // KNN_MODEL

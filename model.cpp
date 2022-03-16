@@ -46,58 +46,11 @@ void KnnModel::PreProcessing() {
 void KnnModel::Solve() {
     PreProcessing();
 
-    // ofstream fo("debug.out");
-
     pair<double, int>** dist_from_to = new pair<double, int>*[n];
     for (int i = 0; i < n; ++i)
         dist_from_to[i] = new pair<double, int>[k];
 
-    // cout << "Done allocating memory for heaps" << endl;
-
-    const int n_blocks = (n + block_size - 1) / block_size;
-    vector<double*> blocks(n_blocks);
-    for (int i = 0; i < n_blocks; ++i) {
-        blocks[i] = new double[min(block_size, n - i * block_size) * d];
-        for (int j = 0, lim = min(block_size, n - i * block_size); j < lim; ++j)
-            for (int k = 0; k < d; ++k)
-                blocks[i][j * d + k] = points[(i * block_size + j) * d + k];
-    }
-
-    // cout << "Done creating blocks" << endl;
-
-    double* foo = new double[block_size * block_size];
-    for (int i = 0; i < n_blocks; ++i) {
-        // cout << "i = " << i << ' '; cout.flush();
-        // auto start = chrono::high_resolution_clock::now();
-
-        for (int j = i; j < n_blocks; ++j) {
-            int i_size(i < n_blocks - 1 ? block_size : n - (n_blocks - 1) * block_size);
-            int j_size(j < n_blocks - 1 ? block_size : n - (n_blocks - 1) * block_size);
-            cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, blocks[i], d, blocks[j], d, 0, foo, j_size);
-            
-            for (int ii = 0; ii < i_size; ++ii)
-                for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
-                    int i_index = i * block_size + ii;
-                    int j_index = j * block_size + jj;
-                    double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * foo[ii * j_size + jj];
-
-                    // insert heap[i]
-                    if (j_index <= k || dist < dist_from_to[i_index][0].first)
-                        push_heap(dist_from_to[i_index], dist_from_to[i_index] + min(j_index - 1, k), k, {dist, j_index});
-
-                    // insert heap[j]
-                    if (i_index < k || dist < dist_from_to[j_index][0].first)
-                        push_heap(dist_from_to[j_index], dist_from_to[j_index] + min(i_index, k), k, {dist, i_index});
-                }
-        }
-        
-        // auto stop = chrono::high_resolution_clock::now();
-        // auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-        // fo << duration.count() / 1000000 << '.' << duration.count() % 1000000 << 's' << endl;
-    }
-    delete[] foo;
-
-    // cout << "Done solving" << endl;
+    SolveForHeaps(dist_from_to);
 
     for (int i = 0; i < n; ++i) {
         sort_heap(dist_from_to[i], dist_from_to[i] + k);
@@ -105,25 +58,79 @@ void KnnModel::Solve() {
             results[i][j] = dist_from_to[i][j].second;
     }
 
-    // cout << "Done getting results" << endl;
-
     for (int i = 0; i < n; ++i)
         delete[] dist_from_to[i];
     delete[] dist_from_to;
+}
 
-    for (double* blk: blocks)
-        delete[] blk;
+inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
+    const int n_blocks = (n + block_size - 1) / block_size;
 
-    // cout << "Done unallocating memory" << endl;
+    // Allocate memory
+    double** blocks = new double*[n_blocks];
+    for (int i = 0; i < n_blocks - 1; ++i) {
+        blocks[i] = new double[block_size * d];
+        const int i_base = i * block_size;
+        for (int j = 0; j < block_size; ++j)
+            for (int k = 0; k < d; ++k)
+                blocks[i][j * d + k] = points[(i_base + j) * d + k];
+    }
+    {
+        const int i = n_blocks - 1;
+        const int i_base = i * block_size;
+        blocks[i] = new double[(n - i_base) * d];
+        for (int j = 0, lim = n - i_base; j < lim; ++j)
+            for (int k = 0; k < d; ++k)
+                blocks[i][j * d + k] = points[(i_base + j) * d + k];
+    }
 
-    // fo.close();
+    double* foo = new double[block_size * block_size];
+
+    // Solve for heaps in block i and block j
+    for (int i = 0; i < n_blocks - 1; ++i) {
+        for (int j = i; j < n_blocks - 1; ++j)
+            PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, block_size, foo, heap);
+        const int j = n_blocks - 1;
+        PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, n - j * block_size, foo, heap);        
+    }
+    {
+        const int i = n_blocks - 1;
+        for (int j(i); j < n_blocks - 1; ++j)
+            PushBlockToHeap(blocks[i], i, n - i * block_size, blocks[j], j, block_size, foo, heap);
+        PushBlockToHeap(blocks[i], i, n - i * block_size, blocks[i], i, n - i * block_size, foo, heap);
+    }
+
+    // Deallocate memory
+    delete[] foo;
+
+    for (int i = 0; i < n_blocks; ++i)
+        delete[] blocks[i];
+    delete[] blocks;
+}
+
+void KnnModel::PushBlockToHeap(double* i_block, int i, int i_size, double* j_block, int j, int j_size, double* sum_of_products, pair<double, int>** heap) {
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size);
+
+    for (int ii = 0; ii < i_size; ++ii)
+        for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
+            const int i_index = i * block_size + ii;
+            const int j_index = j * block_size + jj;
+            const double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * sum_of_products[ii * j_size + jj];
+
+            // insert heap[i]
+            if (j_index <= k || dist < heap[i_index][0].first)
+                push_heap(heap[i_index], heap[i_index] + min(j_index - 1, k), k, {dist, j_index});
+
+            // insert heap[j]
+            if (i_index < k || dist < heap[j_index][0].first)
+                push_heap(heap[j_index], heap[j_index] + min(i_index, k), k, {dist, i_index});
+        }
 }
 
 void KnnModel::PreCalculationOfDistance() {
     sum_of_squared.resize(n, 0);
-    for (int i = 0; i < n; ++i)
-        for (int j = 0; j < d; ++j)
-            sum_of_squared[i] += points[i * d + j] * points[i * d + j];
+    for (int i = 0, lim(n * d); i < lim; ++i)
+        sum_of_squared[i / d] += points[i] * points[i];
 }
 
 void KnnModel::Clean() {
@@ -136,7 +143,12 @@ KnnModel::~KnnModel() {
 }
 
 template<typename T>
-void push_heap(T* it_begin, T* it_end) {
+void push_heap(T* it_begin, T* it_end, int size_lim, T val) {
+    if (it_end - it_begin == size_lim && val < *it_begin)
+        pop_heap(it_begin, it_end);
+    else ++it_end;
+    *(it_end - 1) = val;
+
     unsigned short int cur((--it_end) - it_begin);
     while (it_end != it_begin) {
         unsigned short int par(cur); --par; par >>= 1;
@@ -178,24 +190,4 @@ template<typename T>
 void sort_heap(T* it_begin, T* it_end) {
     for (; it_end != it_begin; --it_end)
         pop_heap(it_begin, it_end);
-}
-
-template<typename T>
-void push_heap(T* it_begin, T* it_end, int size_lim, T val) {
-    if (it_end - it_begin == size_lim && val < *it_begin)
-        pop_heap(it_begin, it_end);
-    else ++it_end;
-    *(it_end - 1) = val;
-
-    unsigned short int cur((--it_end) - it_begin);
-    while (it_end != it_begin) {
-        unsigned short int par(cur); --par; par >>= 1;
-        T* it_par(it_end - cur + par);
-        if (*it_par < *it_end) {
-            swap(*it_par, *it_end);
-            cur = par;
-            it_end = it_par;
-        }
-        else break;
-    }
 }
