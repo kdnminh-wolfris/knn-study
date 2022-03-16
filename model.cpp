@@ -26,12 +26,12 @@ bool KnnModel::ReadData(string path) {
 
 void KnnModel::Output(string path) {
     ofstream fo(path);
-    if (results.empty())
+    if (!results)
         fo << "This instance has not been solved!";
     else {
         for (int i = 0; i < n; ++i) {
-            for (int neighbour_id: results[i])
-                fo << neighbour_id << ' ';
+            for (int j = 0; j < k; ++j)
+                fo << results[i][j] << ' ';
             fo << '\n';
         }
     }
@@ -39,7 +39,9 @@ void KnnModel::Output(string path) {
 }
 
 void KnnModel::PreProcessing() {
-    results.resize(n, vector<int>(k, -1));
+    results = new int*[n];
+    for (int i = 0; i < n; ++i)
+        results[i] = new int[k];
     PreCalculationOfDistance();
 }
 
@@ -108,7 +110,7 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     delete[] blocks;
 }
 
-void KnnModel::PushBlockToHeap(double* i_block, int i, int i_size, double* j_block, int j, int j_size, double* sum_of_products, pair<double, int>** heap) {
+void KnnModel::PushBlockToHeap(const double* i_block, const int i, const int i_size, const double* j_block, const int j, const int j_size, double* sum_of_products, pair<double, int>** heap) {
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size);
 
     for (int ii = 0; ii < i_size; ++ii)
@@ -128,18 +130,23 @@ void KnnModel::PushBlockToHeap(double* i_block, int i, int i_size, double* j_blo
 }
 
 void KnnModel::PreCalculationOfDistance() {
-    sum_of_squared.resize(n, 0);
+    sum_of_squared = new double[n];
+    for (int i = 0; i < n; ++i)
+        sum_of_squared[i] = 0;
     for (int i = 0, lim(n * d); i < lim; ++i)
         sum_of_squared[i / d] += points[i] * points[i];
 }
 
 void KnnModel::Clean() {
-    results.clear();
-    sum_of_squared.clear();
+    for (int i = 0; i < n; ++i)
+        delete[] results[i];
+    delete[] results;
+    delete[] sum_of_squared;
 }
 
 KnnModel::~KnnModel() {
     delete[] points;
+    Clean();
 }
 
 template<typename T>

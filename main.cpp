@@ -1,7 +1,8 @@
 #include "model.h"
+#include <iostream>
+#include <fstream>
 #include <chrono>
 #include <cblas.h>
-#include <fstream>
 #include <stdio.h>
 
 const string dataset = "GSE157278";
@@ -9,10 +10,10 @@ const string dataset = "GSE157278";
 int main() {
     cout << "\nDone compiling" << endl;
 
-    cout << "\nInputting data..." << endl;
+    cout << "\nInputing data..." << endl;
     KnnModel model;
     model.ReadData("./data/" + dataset + "/inp.inp");
-    cout << "Done inputting" << endl;
+    cout << "Done inputing" << endl;
 
     openblas_set_num_threads(1);
     

@@ -12,8 +12,7 @@
 #ifndef KNN_MODEL
 #define KNN_MODEL
 
-#include <iostream>
-#include <vector>
+#include <string>
 
 using namespace std;
 
@@ -52,17 +51,17 @@ private:
 
     int block_size = 500; // size of each block for processing matrix multiplication
 
-    double* points; // array of data points
+    double* points = nullptr; // array of data points
 
-    vector<vector<int>> results; // list of indexes of k nearest neighbours for each data point
+    int** results = nullptr; // list of indexes of k nearest neighbours for each data point
     
-    vector<double> sum_of_squared; // sum of squared points[i][j] for pre-calculation of distances
+    double* sum_of_squared = nullptr; // sum of squared points[i][j] for pre-calculation of distances
 
     void PreProcessing();    
     void PreCalculationOfDistance();
 
     void SolveForHeaps(pair<double, int>** heap);
-    void PushBlockToHeap(double* i_block, int i, int i_size, double* j_block, int j, int j_size, double* sum_of_products, pair<double, int>** heap);
+    void PushBlockToHeap(const double* i_block, const int i, const int i_size, const double* j_block, const int j, const int j_size, double* sum_of_products, pair<double, int>** heap);
 };
 
 template<typename T>
