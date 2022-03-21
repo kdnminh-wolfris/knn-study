@@ -180,9 +180,11 @@ void push_heap(
         pop_heap(it_begin, it_end);
     else ++it_end;
 
-    unsigned short int cur((--it_end) - it_begin);
+    int cur = (--it_end) - it_begin;
     while (cur) {
-        unsigned short int par(cur); --par; par >>= 1; // par = (cur - 1) / 2
+        int par = cur - 1;
+        if (cur & 1) par >>= 1;
+
         if (it_begin[par] < val) {
             it_begin[cur] = it_begin[par];
             cur = par;
@@ -199,11 +201,17 @@ void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
     pair<double, int> val = *it_begin;
     int cur = 0, last = it_end - it_begin;
     while (true) {
-        int selected = (cur << 1) | 1;
+        int selected = cur + 1;
         if (selected >= last) break;
-        selected += (selected + 1 < last
-            && it_begin[selected] < it_begin[selected + 1]);
-        if (it_begin[selected] <= val) break;
+
+        int left = (cur << 1) | 1;
+        if (!(cur & 1)) {
+            if (left >= last) break;
+            selected = left;
+        }
+        else if (left < last && it_begin[selected] < it_begin[left])
+            selected = left;
+        if (it_begin[selected] < val) break;;
         it_begin[cur] = it_begin[selected];
         cur = selected;
     }
