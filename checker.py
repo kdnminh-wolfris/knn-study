@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 
-def read_data(dataset):
-    faiss_knn = pd.read_csv('data/{}/faiss_index.out'.format(dataset), header=None, sep=' ').to_numpy()
-    my_knn = pd.read_csv('data/{}/out.out'.format(dataset), header=None, sep=' ').to_numpy()
-    inp_matrix = pd.read_csv('data/{}/inp.inp'.format(dataset), skiprows=1, header=None, sep=' ').to_numpy()
+def read_data(faiss_out, my_out, inp):
+    faiss_knn = pd.read_csv(faiss_out, header=None, sep=' ').to_numpy()
+    my_knn = pd.read_csv(my_out, header=None, sep=' ').to_numpy()
+    inp_matrix = pd.read_csv(inp, skiprows=1, header=None, sep=' ').to_numpy()
 
     faiss_knn = faiss_knn[:, 1:-1].astype('int32')
     my_knn = my_knn[:, :-1].astype('int32')
@@ -42,7 +42,7 @@ def similarity_check():
     print('Number of different neighbours of every point:', cnt)
 
 #-----MAIN-----
-faiss_knn, my_knn, inp_matrix = read_data('GSE128223.out')
+faiss_knn, my_knn, inp_matrix = read_data('knn_index.out', 'GSE128223.out', 'GSE128223.inp')
 print('Faiss knn shape:', faiss_knn.shape)
 print('My knn shape:', my_knn.shape)
 print('Input matrix shape:', inp_matrix.shape)
