@@ -73,20 +73,15 @@ private:
 };
 
 /**
- * @brief Given a max heap in the range [it_begin, it_end), this function extends the
- * range considered a heap to [it_begin, it_end] by placing val in it_end into its
- * corresponding location within it. The heap is also kept not to exceed size_lim
- * elements by popping the heap top before pushing the new value val.
+ * @brief Given a max heap in the range [it_begin, it_begin + heap_size), this function
+ * maintains the size of the heap by pushing the new value val into heap only when it's
+ * less than the current heap top.
  * 
  * @param it_begin the initial position of the heap
- * @param it_end the final position of the heap
- * @param size_lim the number of elements in the heap is limited by size_lim
+ * @param heap_size the number of elements in the heap
  * @param val the value to be pushed into heap
  */
-void push_heap(
-    pair<double, int>* it_begin, pair<double, int>* it_end,
-    int size_lim, pair<double, int> val
-);
+void push_heap(pair<double, int>* it_begin, int heap_size, pair<double, int> val);
 
 /**
  * @brief Rearranges the elements in the heap range [it_begin, it_end) in such a way
@@ -105,5 +100,7 @@ void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
  * @param it_end the final position of the heap
  */
 void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
+
+void make_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
 
 #endif // KNN_MODEL
