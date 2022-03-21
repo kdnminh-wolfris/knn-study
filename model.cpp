@@ -122,7 +122,6 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     // cout << sum << '\n';
 }
 
-
 void KnnModel::PushBlockToHeap(
     const double* i_block, const int i, const int i_size,
     const double* j_block, const int j, const int j_size,
@@ -172,24 +171,6 @@ KnnModel::~KnnModel() {
     Clean();
 }
 
-void doubly_push_heap(
-    pair<double, int>* i_begin, pair<double, int>* i_end,
-    pair<double, int>* j_begin, pair<double, int>* j_end,
-    int size_lim, pair<double, int> val
-) {
-    if (i_end - i_begin == size_lim && val < *i_begin)
-        pop_heap(i_begin, i_end);
-    else ++i_end;
-    *(i_end - 1) = val;
-
-    if (j_end - j_begin == size_lim && val < *j_begin)
-        pop_heap(j_begin, j_end);
-    else ++j_end;
-    *(j_end - 1) = val;
-    
-    
-}
-
 void push_heap(
     pair<double, int>* it_begin, pair<double, int>* it_end,
     int size_lim, pair<double, int> val
@@ -198,41 +179,35 @@ void push_heap(
     if (it_end - it_begin == size_lim && val < *it_begin)
         pop_heap(it_begin, it_end);
     else ++it_end;
-    *(it_end - 1) = val;
 
     unsigned short int cur((--it_end) - it_begin);
-    while (it_end != it_begin) {
+    while (cur) {
         unsigned short int par(cur); --par; par >>= 1; // par = (cur - 1) / 2
-        pair<double, int>* it_par(it_end - cur + par);
-        if (*it_par < *it_end) {
-            swap(*it_par, *it_end);
+        if (it_begin[par] < val) {
+            it_begin[cur] = it_begin[par];
             cur = par;
-            it_end = it_par;
         }
         else break;
     }
+    it_begin[cur] = val;
     // auto stop = chrono::high_resolution_clock::now();
     // time_cnt += (long long)(chrono::duration_cast<chrono::nanoseconds>(stop - start).count());
 }
 
 void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
     swap(*it_begin, *(--it_end));
-    unsigned short int cur = 0, last = it_end - it_begin;
-    do {
-        unsigned short int left((cur << 1) | 1); // left = cur * 2 + 1
-        if (left >= last) break;
-
-        unsigned short int right(left); ++right; // right = left + 1
-        if ((right >= last || it_begin[left].first > it_begin[right].first)
-            && it_begin[cur].first < it_begin[left].first) {
-            swap(it_begin[cur], it_begin[left]);
-            cur = left;
-            continue;
-        }
-
-        swap(it_begin[cur], it_begin[right]);
-        cur = right;
-    } while (true);
+    pair<double, int> val = *it_begin;
+    int cur = 0, last = it_end - it_begin;
+    while (true) {
+        int selected = (cur << 1) | 1;
+        if (selected >= last) break;
+        selected += (selected + 1 < last
+            && it_begin[selected] < it_begin[selected + 1]);
+        if (it_begin[selected] <= val) break;
+        it_begin[cur] = it_begin[selected];
+        cur = selected;
+    }
+    it_begin[cur] = val;
 }
 
 void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
