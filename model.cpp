@@ -180,10 +180,21 @@ void push_heap(
         pop_heap(it_begin, it_end);
     else ++it_end;
 
-    unsigned short int cur((--it_end) - it_begin);
+    int last = it_end - it_begin;
+    int cur = last - 1;
+
+    if (cur && !(cur & 1) && val < it_begin[cur - 1]) {
+        it_begin[cur] = it_begin[cur - 1];
+        it_begin[cur - 1] = val;
+        return;
+    }
+
     while (cur) {
         unsigned short int par(cur); --par; par >>= 1; // par = (cur - 1) / 2
         if (it_begin[par] < val) {
+            if ((cur & 1) && cur + 1 < last && val > it_begin[cur + 1])
+                it_begin[cur] = it_begin[++cur];
+
             it_begin[cur] = it_begin[par];
             cur = par;
         }
