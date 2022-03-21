@@ -21,12 +21,14 @@ int main() {
     auto start = chrono::high_resolution_clock::now();
     model.Solve();
     auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    auto duration = chrono::duration_cast<chrono::nanoseconds>(stop - start);
     cout << "Done solving" << endl;
-    printf("Duration: %ld.%06lds", duration.count() / int(1e6), duration.count() % int(1e6));
+    printf("Duration: %ld.%09lds", duration.count() / int(1e9), duration.count() % int(1e9));
     cout << endl;
 
-    // cout << "\nOutputing results..." << endl;
-    // model.Output("./data/" + dataset + "/out.out");
-    // cout << "Done outputing" << endl;
+    cout << '\n' << model.timecnt << endl;
+
+    cout << "\nOutputing results..." << endl;
+    model.Output("./data/" + dataset + "/out.out");
+    cout << "Done outputing" << endl;
 }

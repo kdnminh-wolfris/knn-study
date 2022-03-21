@@ -44,33 +44,66 @@ public:
 
     ~KnnModel();
 
+    long long timecnt = 0;
+
 private:
-    int n; // number of data points
-    int d; // number of dimensions
-    int k; // number of nearest neighbours to find
-
-    int block_size = 500; // size of each block for processing matrix multiplication
-
+    int n = 0; // number of data points
+    int d = 0; // number of dimensions
+    int k = 0; // number of nearest neighbours to find
     double* points = nullptr; // array of data points
 
-    int** results = nullptr; // list of indexes of k nearest neighbours for each data point
-    
-    double* sum_of_squared = nullptr; // sum of squared points[i][j] for pre-calculation of distances
+    // size of each block for processing matrix multiplication
+    int block_size = 1000;
+
+    // sum of squared points[i][j] for pre-calculation of distances
+    double* sum_of_squared = nullptr;
+
+    // list of indexes of k nearest neighbours for each data point
+    int** results = nullptr;
 
     void PreProcessing();    
     void PreCalculationOfDistance();
 
     void SolveForHeaps(pair<double, int>** heap);
-    void PushBlockToHeap(const double* i_block, const int i, const int i_size, const double* j_block, const int j, const int j_size, double* sum_of_products, pair<double, int>** heap);
+    void PushBlockToHeap(
+        const double* i_block, const int i, const int i_size,
+        const double* j_block, const int j, const int j_size,
+        double* sum_of_products, pair<double, int>** heap
+    );
 };
 
-template<typename T>
-void push_heap(T* it_begin, T* it_end, int size_lim, T val);
+/**
+ * @brief Given a max heap in the range [it_begin, it_end), this function extends the
+ * range considered a heap to [it_begin, it_end] by placing val in it_end into its
+ * corresponding location within it. The heap is also kept not to exceed size_lim
+ * elements by popping the heap top before pushing the new value val.
+ * 
+ * @param it_begin the initial position of the heap
+ * @param it_end the final position of the heap
+ * @param size_lim the number of elements in the heap is limited by size_lim
+ * @param val the value to be pushed into heap
+ */
+void push_heap(
+    pair<double, int>* it_begin, pair<double, int>* it_end,
+    int size_lim, pair<double, int> val
+);
 
-template<typename T>
-void pop_heap(T* it_begin, T* it_end);
+/**
+ * @brief Rearranges the elements in the heap range [it_begin, it_end) in such a way
+ * that the part considered a heap is shortened by one: The element with the highest
+ * value is moved to (it_end-1).
+ * 
+ * @param it_begin the initial position of the heap
+ * @param it_end the final position of the heap
+ */
+void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
 
-template<typename T>
-void sort_heap(T* it_begin, T* it_end);
+/**
+ * @brief Sorts the elements in the heap range [it_begin, it_end) into ascending order.
+ * 
+ * @param it_begin the initial position of the heap
+ * @param it_end the final position of the heap
+ */
+void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
 
 #endif // KNN_MODEL

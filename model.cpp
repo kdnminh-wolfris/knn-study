@@ -5,6 +5,9 @@
 #include <thread>
 #include <cblas.h>
 
+#pragma GCC target("avx2")
+#include <immintrin.h>
+
 #include "model.h"
 
 KnnModel::KnnModel() {
@@ -40,6 +43,7 @@ void KnnModel::Output(string path) {
 }
 
 void KnnModel::PreProcessing() {
+    Clean();
     results = new int*[n];
     for (int i = 0; i < n; ++i)
         results[i] = new int[k];
@@ -65,6 +69,9 @@ void KnnModel::Solve() {
         delete[] dist_from_to[i];
     delete[] dist_from_to;
 }
+
+long long time_cnt = 0;
+double sum = 0;
 
 inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     const int n_blocks = (n + block_size - 1) / block_size;
@@ -110,17 +117,25 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     for (int i = 0; i < n_blocks; ++i)
         delete[] blocks[i];
     delete[] blocks;
+
+    this->timecnt = time_cnt;
+    // cout << sum << '\n';
 }
 
-void KnnModel::PushBlockToHeap(const double* i_block, const int i, const int i_size, const double* j_block, const int j, const int j_size, double* sum_of_products, pair<double, int>** heap) {
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size);
 
+void KnnModel::PushBlockToHeap(
+    const double* i_block, const int i, const int i_size,
+    const double* j_block, const int j, const int j_size,
+    double* sum_of_products, pair<double, int>** heap
+) {
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size);
+    
     for (int ii = 0; ii < i_size; ++ii)
         for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
             const int i_index = i * block_size + ii;
             const int j_index = j * block_size + jj;
             const double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * sum_of_products[ii * j_size + jj];
-
+            
             // insert heap[i]
             if (j_index <= k || dist < heap[i_index][0].first)
                 push_heap(heap[i_index], heap[i_index] + min(j_index - 1, k), k, {dist, j_index});
@@ -140,10 +155,16 @@ void KnnModel::PreCalculationOfDistance() {
 }
 
 void KnnModel::Clean() {
-    for (int i = 0; i < n; ++i)
-        delete[] results[i];
-    delete[] results;
-    delete[] sum_of_squared;
+    if (results) {
+        for (int i = 0; i < n; ++i)
+            if (results[i]) delete[] results[i];
+        delete[] results;
+        results = nullptr;
+    }
+    if (sum_of_squared) {
+        delete[] sum_of_squared;
+        sum_of_squared = nullptr;
+    }
 }
 
 KnnModel::~KnnModel() {
@@ -151,8 +172,29 @@ KnnModel::~KnnModel() {
     Clean();
 }
 
-template<typename T>
-void push_heap(T* it_begin, T* it_end, int size_lim, T val) {
+void doubly_push_heap(
+    pair<double, int>* i_begin, pair<double, int>* i_end,
+    pair<double, int>* j_begin, pair<double, int>* j_end,
+    int size_lim, pair<double, int> val
+) {
+    if (i_end - i_begin == size_lim && val < *i_begin)
+        pop_heap(i_begin, i_end);
+    else ++i_end;
+    *(i_end - 1) = val;
+
+    if (j_end - j_begin == size_lim && val < *j_begin)
+        pop_heap(j_begin, j_end);
+    else ++j_end;
+    *(j_end - 1) = val;
+    
+    
+}
+
+void push_heap(
+    pair<double, int>* it_begin, pair<double, int>* it_end,
+    int size_lim, pair<double, int> val
+) {
+    // auto start = chrono::high_resolution_clock::now();
     if (it_end - it_begin == size_lim && val < *it_begin)
         pop_heap(it_begin, it_end);
     else ++it_end;
@@ -160,8 +202,8 @@ void push_heap(T* it_begin, T* it_end, int size_lim, T val) {
 
     unsigned short int cur((--it_end) - it_begin);
     while (it_end != it_begin) {
-        unsigned short int par(cur); --par; par >>= 1;
-        T* it_par(it_end - cur + par);
+        unsigned short int par(cur); --par; par >>= 1; // par = (cur - 1) / 2
+        pair<double, int>* it_par(it_end - cur + par);
         if (*it_par < *it_end) {
             swap(*it_par, *it_end);
             cur = par;
@@ -169,34 +211,31 @@ void push_heap(T* it_begin, T* it_end, int size_lim, T val) {
         }
         else break;
     }
+    // auto stop = chrono::high_resolution_clock::now();
+    // time_cnt += (long long)(chrono::duration_cast<chrono::nanoseconds>(stop - start).count());
 }
 
-template<typename T>
-void pop_heap(T* it_begin, T* it_end) {
-    unsigned short int cur(0);
+void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
     swap(*it_begin, *(--it_end));
+    unsigned short int cur = 0, last = it_end - it_begin;
     do {
-        unsigned short int left((cur << 1) | 1);
-        unsigned short int right(cur); ++right; right <<= 1;
-        T* it_left(it_begin - cur + left);
-        T* it_right(it_begin - cur + right);
-        if (it_left >= it_end)
-            break;
-        if (it_right < it_end && *it_left < *it_right) {
-            it_left = it_right;
-            left = right;
-        }
-        if (*it_begin < *it_left) {
-            swap(*it_begin, *it_left);
-            it_begin = it_left;
+        unsigned short int left((cur << 1) | 1); // left = cur * 2 + 1
+        if (left >= last) break;
+
+        unsigned short int right(left); ++right; // right = left + 1
+        if ((right >= last || it_begin[left].first > it_begin[right].first)
+            && it_begin[cur].first < it_begin[left].first) {
+            swap(it_begin[cur], it_begin[left]);
             cur = left;
+            continue;
         }
-        else break;
+
+        swap(it_begin[cur], it_begin[right]);
+        cur = right;
     } while (true);
 }
 
-template<typename T>
-void sort_heap(T* it_begin, T* it_end) {
+void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
     for (; it_end != it_begin; --it_end)
         pop_heap(it_begin, it_end);
 }
