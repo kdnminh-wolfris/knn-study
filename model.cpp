@@ -279,3 +279,44 @@ void StrongHeap::pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end
     }
     it_begin[cur] = val;
 }
+
+SimdHeap::SimdHeap() {
+    int tmp[8];
+    for (int i = 0; i < 8; ++i)
+        tmp[i] = i;
+    for (int i = 0; i < 8; ++i) {
+        if (i) tmp[i - 1] = tmp[i], tmp[i] = 0;
+        sort_values[i] = _mm256_set_epi32(
+            tmp[0], tmp[1], tmp[2], tmp[3],
+            tmp[4], tmp[5], tmp[6], tmp[7]
+        );
+    }
+}
+
+void SimdHeap::push_heap(
+    pair<double, int>* it_begin, pair<double, int>* it_end,
+    int size_lim, pair<double, int> val
+) {
+    if (it_end - it_begin == size_lim && val < *it_begin)
+        pop_heap(it_begin, it_end--);
+    *it_end = val;
+
+    // 1. Get indices of nodes from the new node all the way up to root
+    ssize_t last = it_end - it_begin;
+    uint32_t tmp[8];
+    tmp[0] = last;
+    for (int i = 1; i < 8; ++i)
+        if (tmp[0]) tmp[i] = (tmp[i - 1] - 1) >> 1;
+        else tmp[i] = 0;
+    const __m256i indices = _mm256_set_epi32(
+        tmp[0], tmp[1], tmp[2], tmp[3],
+        tmp[4], tmp[5], tmp[6], tmp[7]
+    );
+
+    // TODO: Try divide SIMD process into two parts since cannot load 8 128-bit data
+
+    // 2. Get values in heap corresponding to indices
+    // 3. Mask the parents that violates heap property, i.e. smaller than new value,
+    //    indicating the parents that the new node needs to climb over
+    // 4. Climb to correct position
+}

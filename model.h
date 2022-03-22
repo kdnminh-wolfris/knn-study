@@ -119,4 +119,17 @@ public:
     void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
 };
 
+class SimdHeap : Heap {
+public:
+    SimdHeap();
+
+    void push_heap(
+        pair<double, int>* it_begin, pair<double, int>* it_end,
+        int size_lim, pair<double, int> val
+    );
+
+private:
+    __m256i sort_values[8];
+};
+
 #endif // KNN_MODEL
