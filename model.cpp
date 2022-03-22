@@ -73,7 +73,7 @@ void KnnModel::Solve() {
 long long time_cnt = 0;
 double sum = 0;
 
-inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
+inline void KnnModel::SolveForHeaps(pair<double, int>** dist_from_to) {
     const int n_blocks = (n + block_size - 1) / block_size;
     const int last_block_size = n - (n_blocks - 1) * block_size;
 
@@ -100,15 +100,27 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
     // Solve for heaps in block i and block j
     for (int i = 0; i < n_blocks - 1; ++i) {
         for (int j = i; j < n_blocks - 1; ++j)
-            PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, block_size, foo, heap);
+            PushBlockToHeap(
+                blocks[i], i, block_size, blocks[j], j, block_size,
+                foo, dist_from_to
+            );
         const int j = n_blocks - 1;
-        PushBlockToHeap(blocks[i], i, block_size, blocks[j], j, last_block_size, foo, heap);        
+        PushBlockToHeap(
+            blocks[i], i, block_size, blocks[j], j, last_block_size,
+            foo, dist_from_to
+        );
     }
     {
         const int i = n_blocks - 1;
         for (int j = i; j < n_blocks - 1; ++j)
-            PushBlockToHeap(blocks[i], i, last_block_size, blocks[j], j, block_size, foo, heap);
-        PushBlockToHeap(blocks[i], i, last_block_size, blocks[i], i, last_block_size, foo, heap);
+            PushBlockToHeap(
+                blocks[i], i, last_block_size, blocks[j], j, block_size,
+                foo, dist_from_to
+            );
+        PushBlockToHeap(
+            blocks[i], i, last_block_size, blocks[i], i, last_block_size,
+            foo, dist_from_to
+        );
     }
 
     // Deallocate memory
@@ -125,23 +137,35 @@ inline void KnnModel::SolveForHeaps(pair<double, int>** heap) {
 void KnnModel::PushBlockToHeap(
     const double* i_block, const int i, const int i_size,
     const double* j_block, const int j, const int j_size,
-    double* sum_of_products, pair<double, int>** heap
+    double* sum_of_products, pair<double, int>** dist_from_to
 ) {
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size);
-    
+    cblas_dgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans,
+        i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size
+    );
+
+    Heap heap;
     for (int ii = 0; ii < i_size; ++ii)
         for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
             const int i_index = i * block_size + ii;
             const int j_index = j * block_size + jj;
-            const double dist = sum_of_squared[i_index] + sum_of_squared[j_index] - 2 * sum_of_products[ii * j_size + jj];
+            const double dist =
+                sum_of_squared[i_index] + sum_of_squared[j_index]
+                - 2 * sum_of_products[ii * j_size + jj];
             
             // insert heap[i]
-            if (j_index <= k || dist < heap[i_index][0].first)
-                push_heap(heap[i_index], heap[i_index] + min(j_index - 1, k), k, {dist, j_index});
+            if (j_index <= k || dist < dist_from_to[i_index][0].first)
+                heap.push_heap(
+                    dist_from_to[i_index], dist_from_to[i_index] + min(j_index - 1, k),
+                    k, {dist, j_index}
+                );
 
             // insert heap[j]
-            if (i_index < k || dist < heap[j_index][0].first)
-                push_heap(heap[j_index], heap[j_index] + min(i_index, k), k, {dist, i_index});
+            if (i_index < k || dist < dist_from_to[j_index][0].first)
+                heap.push_heap(
+                    dist_from_to[j_index], dist_from_to[j_index] + min(i_index, k),
+                    k, {dist, i_index}
+                );
         }
 }
 
@@ -171,11 +195,51 @@ KnnModel::~KnnModel() {
     Clean();
 }
 
-void push_heap(
+void Heap::push_heap(
     pair<double, int>* it_begin, pair<double, int>* it_end,
     int size_lim, pair<double, int> val
 ) {
-    // auto start = chrono::high_resolution_clock::now();
+    if (it_end - it_begin == size_lim && val < *it_begin)
+        pop_heap(it_begin, it_end);
+    else ++it_end;
+
+    int cur = (--it_end) - it_begin;
+    while (cur) {
+        int par = (cur - 1) >> 1; // par = (cur - 1) / 2
+        if (it_begin[par] < val) {
+            it_begin[cur] = it_begin[par];
+            cur = par;
+        }
+        else break;
+    }
+    it_begin[cur] = val;
+}
+
+void Heap::pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
+    swap(*it_begin, *(--it_end));
+    pair<double, int> val = *it_begin;
+    int cur = 0, last = it_end - it_begin;
+    while (true) {
+        int selected = (cur << 1) | 1;
+        if (selected >= last) break;
+        selected += (selected + 1 < last
+            && it_begin[selected] < it_begin[selected + 1]);
+        if (it_begin[selected] <= val) break;
+        it_begin[cur] = it_begin[selected];
+        cur = selected;
+    }
+    it_begin[cur] = val;
+}
+
+void Heap::sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
+    for (; it_end != it_begin; --it_end)
+        pop_heap(it_begin, it_end);
+}
+
+void StrongHeap::push_heap(
+    pair<double, int>* it_begin, pair<double, int>* it_end,
+    int size_lim, pair<double, int> val
+) {
     if (it_end - it_begin == size_lim && val < *it_begin)
         pop_heap(it_begin, it_end);
     else ++it_end;
@@ -192,11 +256,9 @@ void push_heap(
         else break;
     }
     it_begin[cur] = val;
-    // auto stop = chrono::high_resolution_clock::now();
-    // time_cnt += (long long)(chrono::duration_cast<chrono::nanoseconds>(stop - start).count());
 }
 
-void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
+void StrongHeap::pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
     swap(*it_begin, *(--it_end));
     pair<double, int> val = *it_begin;
     int cur = 0, last = it_end - it_begin;
@@ -216,9 +278,4 @@ void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
         cur = selected;
     }
     it_begin[cur] = val;
-}
-
-void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end) {
-    for (; it_end != it_begin; --it_end)
-        pop_heap(it_begin, it_end);
 }
