@@ -6,6 +6,7 @@
 #include <cblas.h>
 #include <time.h>
 #include <stdlib.h>
+#include <iomanip>
 
 #pragma GCC target("avx2")
 #include <immintrin.h>
@@ -22,7 +23,7 @@ bool KnnModel::ReadData(string path) {
     fi >> n >> d >> k;
     // n = 1000;
 
-    points = new double[n * d];
+    points = new float[n * d];
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < d; ++j)
             fi >> points[i * d + j];
@@ -35,6 +36,7 @@ void KnnModel::Output(string path) {
         cout << "\nThis instance has not been solved!" << endl;
     else {
         ofstream fo(path + "indices.out");
+        fo << fixed << setprecision(5);
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < k; ++j)
                 fo << knn_indices[i][j] << ' ';
@@ -56,18 +58,18 @@ void KnnModel::PreProcessing() {
     knn_indices = new int*[n];
     for (int i = 0; i < n; ++i)
         knn_indices[i] = new int[k];
-    knn_distances = new double*[n];
+    knn_distances = new float*[n];
     for (int i = 0; i < n; ++i)
-        knn_distances[i] = new double[k];
+        knn_distances[i] = new float[k];
     PreCalculationOfDistance();
 }
 
 void KnnModel::Solve() {
     PreProcessing();
 
-    pair<double, int>** dist_from_to = new pair<double, int>*[n];
+    pair<float, int>** dist_from_to = new pair<float, int>*[n];
     for (int i = 0; i < n; ++i)
-        dist_from_to[i] = new pair<double, int>[k];
+        dist_from_to[i] = new pair<float, int>[k];
 
     GetResults(dist_from_to);
 
@@ -83,16 +85,16 @@ void KnnModel::Solve() {
 }
 
 long long time_cnt = 0; // for debugging
-double sum = 0; // for debugging
+float sum = 0; // for debugging
 
-inline void KnnModel::GetResults(pair<double, int>** dist_from_to) {
+inline void KnnModel::GetResults(pair<float, int>** dist_from_to) {
     const int n_blocks = (n + block_size - 1) / block_size;
     const int last_block_size = n - (n_blocks - 1) * block_size;
 
     // Allocate memory
-    double** blocks = new double*[n_blocks];
+    float** blocks = new float*[n_blocks];
     for (int i = 0; i < n_blocks - 1; ++i) {
-        blocks[i] = new double[block_size * d];
+        blocks[i] = new float[block_size * d];
         const int i_base = i * block_size;
         for (int j = 0; j < block_size; ++j)
             for (int k = 0; k < d; ++k)
@@ -101,13 +103,13 @@ inline void KnnModel::GetResults(pair<double, int>** dist_from_to) {
     {
         const int i = n_blocks - 1;
         const int i_base = i * block_size;
-        blocks[i] = new double[last_block_size * d];
+        blocks[i] = new float[last_block_size * d];
         for (int j = 0; j < last_block_size; ++j)
             for (int k = 0; k < d; ++k)
                 blocks[i][j * d + k] = points[(i_base + j) * d + k];
     }
 
-    double* foo = new double[block_size * block_size];
+    float* foo = new float[block_size * block_size];
 
     // Get results for each block i
     for (int i = 0; i < n_blocks; ++i)
@@ -117,6 +119,12 @@ inline void KnnModel::GetResults(pair<double, int>** dist_from_to) {
                 blocks[j], j, min(block_size, n - j * block_size),
                 foo, dist_from_to
             );
+
+    // When compare between distances of AB and AC, A^2 is meaningless so I did not
+    // add it to the distance. Therefore I add it here for actual results.
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < k; ++j)
+            dist_from_to[i][j].first += sum_of_squared[i];
 
     // Deallocate memory
     delete[] foo;
@@ -130,17 +138,17 @@ inline void KnnModel::GetResults(pair<double, int>** dist_from_to) {
 }
 
 void KnnModel::CalcSortMerge(
-    const double* i_block, const int i, const int i_size,
-    const double* j_block, const int j, const int j_size,
-    double* sum_of_products, pair<double, int>** dist_from_to
+    const float* i_block, const int i, const int i_size,
+    const float* j_block, const int j, const int j_size,
+    float* sum_of_products, pair<float, int>** dist_from_to
 ) {
-    cblas_dgemm(
-        CblasRowMajor, CblasNoTrans, CblasTrans,
-        i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size
+    cblas_sgemm(
+        CblasRowMajor, CblasNoTrans, CblasTrans, i_size, j_size, d,
+        1, i_block, d, j_block, d, 0, sum_of_products, j_size
     );
 
-    pair<double, int>* foo = new pair<double, int>[j_size];
-    pair<double, int>* bar = new pair<double, int>[k];
+    pair<float, int>* foo = new pair<float, int>[j_size];
+    pair<float, int>* bar = new pair<float, int>[k];
     for (int ii = 0; ii < i_size; ++ii) {
         const int i_index = i * block_size + ii;
 
@@ -170,7 +178,7 @@ void KnnModel::CalcSortMerge(
 }
 
 void KnnModel::PreCalculationOfDistance() {
-    sum_of_squared = new double[n];
+    sum_of_squared = new float[n];
     for (int i = 0; i < n; ++i)
         sum_of_squared[i] = 0;
     for (int i = 0, lim(n * d); i < lim; ++i)
@@ -263,13 +271,6 @@ T* partition(T* first, T* last) {
     return pivot;
 }
 
-template<typename T>
-bool is_sorted(T* first, T* last, int k) {
-    for (++first, --k; first < last && k; ++first, --k)
-        if (*(first - 1) > *first) return false;
-    return true;
-}
-
 // TODO: add SIMD to sort
 
 template<typename T>
@@ -290,10 +291,8 @@ void introsort(T* first, T* last, int depth, int k) {
         heapsort(first, last, k);
     else {
         T* pivot = partition(first, last);
-        // if (!is_sorted(first, pivot, min(k, int(pivot - first))))
-            introsort(first, pivot, depth - 1, min(k, int(pivot - first)));
-        // if (!is_sorted(pivot + 1, last, max(0, k - int(pivot - first) - 1)))
-            introsort(pivot + 1, last, depth - 1, max(0, k - int(pivot - first) - 1));
+        introsort(first, pivot, depth - 1, min(k, int(pivot - first)));
+        introsort(pivot + 1, last, depth - 1, max(0, k - int(pivot - first) - 1));
     }
 }
 

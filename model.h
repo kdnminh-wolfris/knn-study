@@ -13,6 +13,9 @@
 #define KNN_MODEL
 
 #include <string>
+#include <x86intrin.h>
+#include <cstdint>
+#include <assert.h>
 
 using namespace std;
 
@@ -50,16 +53,16 @@ private:
     int n = 0; // number of data points
     int d = 0; // number of dimensions
     int k = 0; // number of nearest neighbours to find
-    double* points = nullptr; // array of data points
+    float* points = nullptr; // array of data points
 
     // size of each block for processing matrix multiplication
     int block_size = 5000;
 
     // sum of squared points[i][j] for pre-calculation of distances
-    double* sum_of_squared = nullptr;
+    float* sum_of_squared = nullptr;
 
     // list of distances to k nearest neighbours corresponding to indices for each data point
-    double** knn_distances = nullptr;
+    float** knn_distances = nullptr;
     
     // list of indexes of k nearest neighbours for each data point
     int** knn_indices = nullptr;
@@ -67,11 +70,11 @@ private:
     void PreProcessing();    
     void PreCalculationOfDistance();
 
-    void GetResults(pair<double, int>** dist_from_to);
+    void GetResults(pair<float, int>** dist_from_to);
     void CalcSortMerge(
-        const double* i_block, const int i, const int i_size,
-        const double* j_block, const int j, const int j_size,
-        double* sum_of_products, pair<double, int>** dist_from_to
+        const float* i_block, const int i, const int i_size,
+        const float* j_block, const int j, const int j_size,
+        float* sum_of_products, pair<float, int>** dist_from_to
     );
 };
 
@@ -95,9 +98,6 @@ T* choose_pivot(T* first, T* last);
 
 template<typename T>
 T* partition(T* first, T* last);
-
-template<typename T>
-bool is_sorted(T* first, T* last, int k);
 
 /**
  * @brief Sorts the first k elements in range [first, last).
