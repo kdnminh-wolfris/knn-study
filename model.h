@@ -53,13 +53,16 @@ private:
     double* points = nullptr; // array of data points
 
     // size of each block for processing matrix multiplication
-    int block_size = 7000;
+    int block_size = 5000;
 
     // sum of squared points[i][j] for pre-calculation of distances
     double* sum_of_squared = nullptr;
 
+    // list of distances to k nearest neighbours corresponding to indices for each data point
+    double** knn_distances = nullptr;
+    
     // list of indexes of k nearest neighbours for each data point
-    int** results = nullptr;
+    int** knn_indices = nullptr;
 
     void PreProcessing();    
     void PreCalculationOfDistance();
@@ -71,6 +74,9 @@ private:
         double* sum_of_products, pair<double, int>** dist_from_to
     );
 };
+
+template<typename T>
+void selectionsort(T* first, T* last, int k);
 
 template<typename T>
 void down_reverse_heap(T* first, T* last, int index);
@@ -89,6 +95,9 @@ T* choose_pivot(T* first, T* last);
 
 template<typename T>
 T* partition(T* first, T* last);
+
+template<typename T>
+bool is_sorted(T* first, T* last, int k);
 
 /**
  * @brief Sorts the first k elements in range [first, last).

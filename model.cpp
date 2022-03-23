@@ -31,24 +31,34 @@ bool KnnModel::ReadData(string path) {
 }
 
 void KnnModel::Output(string path) {
-    ofstream fo(path);
-    if (!results)
-        fo << "This instance has not been solved!";
+    if (!knn_indices)
+        cout << "\nThis instance has not been solved!" << endl;
     else {
+        ofstream fo(path + "indices.out");
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < k; ++j)
-                fo << results[i][j] << ' ';
+                fo << knn_indices[i][j] << ' ';
             fo << '\n';
         }
+        fo.close();
+        fo.open(path + "distances.out");
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < k; ++j)
+                fo << knn_distances[i][j] << ' ';
+            fo << '\n';
+        }
+        fo.close();
     }
-    fo.close();
 }
 
 void KnnModel::PreProcessing() {
     Clean();
-    results = new int*[n];
+    knn_indices = new int*[n];
     for (int i = 0; i < n; ++i)
-        results[i] = new int[k];
+        knn_indices[i] = new int[k];
+    knn_distances = new double*[n];
+    for (int i = 0; i < n; ++i)
+        knn_distances[i] = new double[k];
     PreCalculationOfDistance();
 }
 
@@ -61,10 +71,11 @@ void KnnModel::Solve() {
 
     GetResults(dist_from_to);
 
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < k; ++j)
-            results[i][j] = dist_from_to[i][j].second;
-    }
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < k; ++j) {
+            knn_distances[i][j] = dist_from_to[i][j].first;
+            knn_indices[i][j] = dist_from_to[i][j].second;
+        }
 
     for (int i = 0; i < n; ++i)
         delete[] dist_from_to[i];
@@ -167,11 +178,17 @@ void KnnModel::PreCalculationOfDistance() {
 }
 
 void KnnModel::Clean() {
-    if (results) {
+    if (knn_distances) {
         for (int i = 0; i < n; ++i)
-            if (results[i]) delete[] results[i];
-        delete[] results;
-        results = nullptr;
+            if (knn_distances[i]) delete[] knn_distances[i];
+        delete[] knn_distances;
+        knn_distances = nullptr;
+    }
+    if (knn_indices) {
+        for (int i = 0; i < n; ++i)
+            if (knn_indices[i]) delete[] knn_indices[i];
+        delete[] knn_indices;
+        knn_indices = nullptr;
     }
     if (sum_of_squared) {
         delete[] sum_of_squared;
@@ -182,6 +199,13 @@ void KnnModel::Clean() {
 KnnModel::~KnnModel() {
     delete[] points;
     Clean();
+}
+
+template<typename T>
+void selectionsort(T* first, T* last, int k) {
+    for (; first < last - 1 && k; ++first, --k)
+        for (T* i = first + 1; i < last; ++i)
+            if (*first > *i) swap(*first, *i);
 }
 
 template<typename T>
@@ -240,6 +264,15 @@ T* partition(T* first, T* last) {
 }
 
 template<typename T>
+bool is_sorted(T* first, T* last, int k) {
+    for (++first, --k; first < last && k; ++first, --k)
+        if (*(first - 1) > *first) return false;
+    return true;
+}
+
+// TODO: add SIMD to sort
+
+template<typename T>
 void introsort(T* first, T* last, int depth, int k) {
     if (first >= last) return;
     if (k == 0) return;
@@ -250,12 +283,17 @@ void introsort(T* first, T* last, int depth, int k) {
         return;
     }
 
-    if (depth == 0)
+    const int threshold = 16;
+    if (last - first < threshold)
+        selectionsort(first, last, k);
+    else if (depth == 0)
         heapsort(first, last, k);
     else {
         T* pivot = partition(first, last);
-        introsort(first, pivot, depth - 1, min(k, int(pivot - first)));
-        introsort(pivot + 1, last, depth - 1, max(0, k - int(pivot - first) - 1));
+        // if (!is_sorted(first, pivot, min(k, int(pivot - first))))
+            introsort(first, pivot, depth - 1, min(k, int(pivot - first)));
+        // if (!is_sorted(pivot + 1, last, max(0, k - int(pivot - first) - 1)))
+            introsort(pivot + 1, last, depth - 1, max(0, k - int(pivot - first) - 1));
     }
 }
 

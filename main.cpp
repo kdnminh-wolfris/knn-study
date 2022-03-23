@@ -31,6 +31,6 @@ int main() {
     cout << '\n' << model.timecnt << endl;
 
     cout << "\nOutputing results..." << endl;
-    model.Output("./data/" + dataset + "/out.out");
+    model.Output("./data/" + dataset + "/");
     cout << "Done outputing" << endl;
 }
