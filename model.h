@@ -43,11 +43,11 @@ public:
      */
     void Output(string path);
 
+    float SimilarityCheck(string indices_path, bool print_log);
+
     void Clean();
 
     ~KnnModel();
-
-    long long timecnt = 0;
 
 private:
     int n = 0; // number of data points
@@ -67,7 +67,7 @@ private:
     // list of indexes of k nearest neighbours for each data point
     int** knn_indices = nullptr;
 
-    void PreProcessing();    
+    void PreProcessing();
     void PreCalculationOfDistance();
 
     void GetResults(pair<float, int>** dist_from_to);
@@ -108,5 +108,8 @@ T* partition(T* first, T* last);
  */
 template<typename T>
 void sort(T* first, T* last, int k);
+
+// template<typename T>
+// void sort(T* first, T* last);
 
 #endif // KNN_MODEL

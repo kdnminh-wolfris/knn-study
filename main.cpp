@@ -28,9 +28,11 @@ int main() {
     printf("Duration: %ld.%09lds", duration.count() / int(1e9), duration.count() % int(1e9));
     cout << endl;
 
-    cout << '\n' << model.timecnt << endl;
-
     cout << "\nOutputing results..." << endl;
     model.Output("./data/" + dataset + "/");
     cout << "Done outputing" << endl;
+
+    cout << "\nChecking results..." << endl;
+    float similarity = model.SimilarityCheck("./data/" + dataset + "/faiss_index.out", true);
+    cout << "Similarity: " << similarity << endl;
 }

@@ -53,6 +53,67 @@ void KnnModel::Output(string path) {
     }
 }
 
+template<typename T>
+T** faiss_data_read(string path, int n, int k) {
+    ifstream fi(path);
+    string foo; getline(fi, foo); // ignore first line
+
+    T** ret = new T*[n];
+    for (int i = 0; i < n; ++i)
+        ret[i] = new T[k];
+
+    for (int i = 0; i < n; ++i) {
+        T foo; fi >> foo; // ignore first number of each line
+        for (int j = 0; j < k; ++j)
+            fi >> ret[i][j];
+    }
+    fi.close();
+
+    return ret;
+}
+
+float KnnModel::SimilarityCheck(string indices_path, bool print_log) {
+    // Read output to check
+    int** faiss_indices = faiss_data_read<int>(indices_path, n, k);
+    
+    // Check outputs
+    float similarity;
+    int all = n * k;
+    int matched = 0;
+
+    int* foo = new int[k];
+    for (int i = 0; i < n; ++i) {
+        // Memberwise copy results of point i
+        for (int j = 0; j < k; ++j)
+            foo[j] = knn_indices[i][j];
+        
+        sort(foo, foo + k);
+        sort(faiss_indices[i], faiss_indices[i] + k);
+
+        for (int j1 = 0, j2 = 0; j1 < k; ++j1) {
+            for (; j2 < k && foo[j1] > faiss_indices[i][j2]; ++j2);
+            if (j2 < k && foo[j1] == faiss_indices[i][j2]) {
+                ++matched; ++j2;
+            }
+        }
+    }
+    delete[] foo;
+
+    similarity = (float)matched / all;
+
+    // Detailed log
+    if (print_log)
+        cout << "Matched pairs: " << matched << "/" << all << endl;
+
+    // Deallocate memory
+    for (int i = 0; i < n; ++i)
+        delete[] faiss_indices[i];
+    delete[] faiss_indices;
+
+    // Return checking result
+    return similarity;
+}
+
 void KnnModel::PreProcessing() {
     Clean();
     knn_indices = new int*[n];
@@ -83,9 +144,6 @@ void KnnModel::Solve() {
         delete[] dist_from_to[i];
     delete[] dist_from_to;
 }
-
-long long time_cnt = 0; // for debugging
-float sum = 0; // for debugging
 
 inline void KnnModel::GetResults(pair<float, int>** dist_from_to) {
     const int n_blocks = (n + block_size - 1) / block_size;
@@ -132,9 +190,6 @@ inline void KnnModel::GetResults(pair<float, int>** dist_from_to) {
     for (int i = 0; i < n_blocks; ++i)
         delete[] blocks[i];
     delete[] blocks;
-
-    this->timecnt = time_cnt;
-    // cout << sum << '\n';
 }
 
 void KnnModel::CalcSortMerge(
@@ -301,3 +356,8 @@ void sort(T* first, T* last, int k) {
     srand(time(NULL)); // initialise random seed
     introsort(first, last, int(log2(last - first)) << 1, k);
 }
+
+// template<typename T>
+// void sort(T* first, T* last) {
+//     sort(first, last, last - first);
+// }
