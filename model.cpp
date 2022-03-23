@@ -99,7 +99,6 @@ inline void KnnModel::GetResults(pair<double, int>** dist_from_to) {
     double* foo = new double[block_size * block_size];
 
     // Get results for each block i
-    srand(time(NULL)); // initialise random seed
     for (int i = 0; i < n_blocks; ++i)
         for (int j = 0; j < n_blocks; ++j)
             CalcSortMerge(
@@ -186,6 +185,43 @@ KnnModel::~KnnModel() {
 }
 
 template<typename T>
+void down_reverse_heap(T* first, T* last, int index) {
+    int size = last - first;
+    while ((index << 1) <= size) {
+        int left = index << 1;
+        int right = left + 1;
+        int largest = index;
+        if (*(last - left) < *(last - largest))
+            largest = left;
+        if (right <= size && *(last - right) < *(last - largest))
+            largest = right;
+        if (largest == index) break;
+        swap(*(last - index), *(last - largest));
+        index = largest;
+    }
+}
+
+template<typename T>
+void pop_reverse_heap(T* first, T* last) {
+    swap(*first, *(last - 1));
+    down_reverse_heap(first + 1, last, 1);
+}
+
+template<typename T>
+void make_reverse_heap(T* first, T* last) {
+    int size = last - first;
+    for (int i = size >> 1; i >= 1; --i)
+        down_reverse_heap(first, last, i);
+}
+
+template<typename T>
+void heapsort(T* first, T* last, int k) {
+    make_reverse_heap(first, last);
+    for (; first < last && k; ++first, --k)
+        pop_reverse_heap(first, last);
+}
+
+template<typename T>
 T* choose_pivot(T* first, T* last) {
     return first + rand() % (last - first);
 }
@@ -204,7 +240,7 @@ T* partition(T* first, T* last) {
 }
 
 template<typename T>
-void sort(T* first, T* last, int k) {
+void introsort(T* first, T* last, int depth, int k) {
     if (first >= last) return;
     if (k == 0) return;
     if (first == last - 1) return;
@@ -213,8 +249,18 @@ void sort(T* first, T* last, int k) {
             swap(*first, *(last - 1));
         return;
     }
-    
-    T* pivot = partition(first, last);
-    sort(first, pivot, min(k, int(pivot - first)));
-    sort(pivot + 1, last, max(0, k - int(pivot - first) - 1));
+
+    if (depth == 0)
+        heapsort(first, last, k);
+    else {
+        T* pivot = partition(first, last);
+        introsort(first, pivot, depth - 1, min(k, int(pivot - first)));
+        introsort(pivot + 1, last, depth - 1, max(0, k - int(pivot - first) - 1));
+    }
+}
+
+template<typename T>
+void sort(T* first, T* last, int k) {
+    srand(time(NULL)); // initialise random seed
+    introsort(first, last, int(log2(last - first)) << 1, k);
 }
