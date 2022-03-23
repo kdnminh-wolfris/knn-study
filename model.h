@@ -64,72 +64,28 @@ private:
     void PreProcessing();    
     void PreCalculationOfDistance();
 
-    void SolveForHeaps(pair<double, int>** dist_from_to);
-    void PushBlockToHeap(
+    void GetResults(pair<double, int>** dist_from_to);
+    void CalcSortMerge(
         const double* i_block, const int i, const int i_size,
         const double* j_block, const int j, const int j_size,
         double* sum_of_products, pair<double, int>** dist_from_to
     );
 };
 
-class Heap {
-public:
-    /**
-     * @brief Given a max heap in the range [it_begin, it_end), this function extends
-     * the range considered a heap to [it_begin, it_end] by placing val in it_end into
-     * its corresponding location within it. The heap is also kept not to exceed
-     * size_lim elements by popping the heap top before pushing the new value val.
-     * 
-     * @param it_begin the initial position of the heap
-     * @param it_end the final position of the heap
-     * @param size_lim the number of elements in the heap is limited by size_lim
-     * @param val the value to be pushed into heap
-     */
-    void push_heap(
-        pair<double, int>* it_begin, pair<double, int>* it_end,
-        int size_lim, pair<double, int> val
-    );
+template<typename T>
+T* choose_pivot(T* first, T* last);
 
-    /**
-     * @brief Rearranges the elements in the heap range [it_begin, it_end) in such a way
-     * that the part considered a heap is shortened by one: The element with the highest
-     * value is moved to (it_end-1).
-     * 
-     * @param it_begin the initial position of the heap
-     * @param it_end the final position of the heap
-     */
-    void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
+template<typename T>
+T* partition(T* first, T* last);
 
-    /**
-     * @brief Sorts the elements in the heap range [it_begin, it_end) into ascending
-     * order.
-     * 
-     * @param it_begin the initial position of the heap
-     * @param it_end the final position of the heap
-     */
-    void sort_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
-};
-
-class StrongHeap : Heap {
-public:
-    void push_heap(
-        pair<double, int>* it_begin, pair<double, int>* it_end,
-        int size_lim, pair<double, int> val
-    );
-    void pop_heap(pair<double, int>* it_begin, pair<double, int>* it_end);
-};
-
-class SimdHeap : Heap {
-public:
-    SimdHeap();
-
-    void push_heap(
-        pair<double, int>* it_begin, pair<double, int>* it_end,
-        int size_lim, pair<double, int> val
-    );
-
-private:
-    __m256i sort_values[8];
-};
+/**
+ * @brief Sorts the first k elements in range [first, last).
+ * 
+ * @param first the initial iterator
+ * @param last the final interator
+ * @param k number of elements in the beginning of the array to be sorted
+ */
+template<typename T>
+void sort(T* first, T* last, int k);
 
 #endif // KNN_MODEL
