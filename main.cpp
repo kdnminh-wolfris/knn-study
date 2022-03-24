@@ -5,10 +5,12 @@
 #include <cblas.h>
 #include <stdio.h>
 
-const string dataset = "GSE157278";
+const string dataset = "GSE128223";
 
 int main() {
     cout << "\nDone compiling" << endl;
+
+    cout << "\nDataset: " << dataset << endl;
 
     cout << "\nInputing data..." << endl;
     KnnModel model;
@@ -26,9 +28,11 @@ int main() {
     printf("Duration: %ld.%09lds", duration.count() / int(1e9), duration.count() % int(1e9));
     cout << endl;
 
-    cout << '\n' << model.timecnt << endl;
-
     cout << "\nOutputing results..." << endl;
-    model.Output("./data/" + dataset + "/out.out");
+    model.Output("./data/" + dataset + "/");
     cout << "Done outputing" << endl;
+
+    cout << "\nChecking results..." << endl;
+    float similarity = model.SimilarityCheck("./data/" + dataset + "/faiss_index.out", true);
+    cout << "Similarity: " << similarity << endl;
 }
