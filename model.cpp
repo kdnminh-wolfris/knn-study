@@ -213,7 +213,7 @@ void KnnModel::PushBlockToHeap(
         i_size, j_size, d, 1, i_block, d, j_block, d, 0, sum_of_products, j_size
     );
 
-    Heap heap;
+    SimdHeap heap;
     for (int ii = 0; ii < i_size; ++ii)
         for (int jj = (i < j ? 0 : ii + 1); jj < j_size; ++jj) {
             const int i_index = i * block_size + ii;
@@ -355,19 +355,6 @@ void StrongHeap::pop_heap(pair<float, int>* it_begin, pair<float, int>* it_end) 
     it_begin[cur] = val;
 }
 
-SimdHeap::SimdHeap() {
-    int tmp[8];
-    for (int i = 0; i < 8; ++i)
-        tmp[i] = i;
-    for (int i = 0; i < 8; ++i) {
-        if (i) tmp[i - 1] = tmp[i], tmp[i] = 0;
-        sort_values[i] = _mm256_set_epi32(
-            tmp[0], tmp[1], tmp[2], tmp[3],
-            tmp[4], tmp[5], tmp[6], tmp[7]
-        );
-    }
-}
-
 void SimdHeap::push_heap(
     pair<float, int>* it_begin, pair<float, int>* it_end,
     int size_lim, pair<float, int> val
@@ -376,22 +363,84 @@ void SimdHeap::push_heap(
         pop_heap(it_begin, it_end--);
     *it_end = val;
 
-    // 1. Get indices of nodes from the new node all the way up to root
-    ssize_t last = it_end - it_begin;
-    uint32_t tmp[8];
-    tmp[0] = last;
-    for (int i = 1; i < 8; ++i)
-        if (tmp[0]) tmp[i] = (tmp[i - 1] - 1) >> 1;
-        else tmp[i] = 0;
-    const __m256i indices = _mm256_set_epi32(
-        tmp[0], tmp[1], tmp[2], tmp[3],
-        tmp[4], tmp[5], tmp[6], tmp[7]
-    );
+    for (int index = it_end - it_begin + 1; index > 0;) {
+        // 1. Get indices of nodes from the new node all the way up to root
+        int relative_ind[8], lowest = 8;
+        for (int i = 0, tmpi = (index - 1) >> 1; i < 8; ++i, tmpi = (tmpi - 1) >> 1) {
+            relative_ind[i] = tmpi << 1;
 
-    // TODO: Try divide SIMD process into two parts since cannot load 8 128-bit data
+            // If there are not enough 8 nodes, let the remaining be the new value
+            if (tmpi == 0) {
+                for (int j = i + 1; j < 8; ++j)
+                    relative_ind[j] = index << 1;
+                break;
+            }
+        }
+        const __m256i indices = _mm256_load_si256((__m256i*)relative_ind);
 
-    // 2. Get values in heap corresponding to indices
-    // 3. Mask the parents that violates heap property, i.e. smaller than new value,
-    //    indicating the parents that the new node needs to climb over
-    // 4. Climb to correct position
+        // 2. Get values in heap corresponding to indices
+        const __m256 values = _mm256_i32gather_ps((float*)it_begin, indices, sizeof(int));
+
+        // 3. Mask the parents that violates heap property, i.e. smaller than new value,
+        //    indicating the parents that the new node needs to climb over
+        const __m256 dup_new_values = _mm256_set1_ps(val.first);
+        const __mmask8 cmp_mask = _mm256_cmp_ps_mask(
+            values, dup_new_values,
+            29 // greater-than-or-equal (ordered, non-signaling)
+        );
+        
+        // 4. Climb to correct node
+        const int n_parents_not_ge = cmp_mask != 0 ? __builtin_ctz(cmp_mask) : 8;
+        
+        if (n_parents_not_ge == 0) break;
+
+        // Get pairs of data for 8 elements
+        for (int i = 0; i < 8; ++i)
+            relative_ind[i] >>= 1;
+        
+        __m256i part_1_values = _mm256_i32gather_epi64(
+            (long long*)it_begin,
+            _mm_load_si128((__m128i*)relative_ind),
+            sizeof(int)
+        );
+
+        __m256i part_2_values = _mm256_i32gather_epi64(
+            (long long*)it_begin,
+            _mm_load_si128((__m128i*)(relative_ind + 4)),
+            sizeof(int)
+        );
+
+
+        // cout << val.first << ' ' << val.second << '\n';
+        // cout << it_begin[index].first << ' ' << it_begin[index].second << '\n';
+        
+        // Get new indices after up heap
+        int up_ind = relative_ind[n_parents_not_ge - 1];
+        for (int i = n_parents_not_ge - 1; i > 0; --i)
+            relative_ind[i] = relative_ind[i - 1];
+        relative_ind[0] = index;
+        
+        // Assign values to positions
+        _mm256_i32scatter_epi64(
+            (uint64_t*)it_begin,
+            _mm_load_si128((__m128i*)relative_ind),
+            part_1_values,
+            sizeof(int)
+        );
+
+        _mm256_i32scatter_epi64(
+            (uint64_t*)it_begin,
+            _mm_load_si128((__m128i*)(relative_ind + 4)),
+            part_2_values,
+            sizeof(int)
+        );
+
+        // cout << it_begin[index].first << ' ' << it_begin[index].second << '\n';
+        // cout << endl;
+
+        it_begin[up_ind] = val;
+
+        if (n_parents_not_ge != lowest || up_ind == 0) break;
+        index = up_ind;
+    } // end for
 }

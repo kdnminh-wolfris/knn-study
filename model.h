@@ -13,9 +13,7 @@
 #define KNN_MODEL
 
 #include <string>
-#include <x86intrin.h>
-#include <cstdint>
-#include <assert.h>
+#include <immintrin.h>
 
 using namespace std;
 
@@ -127,15 +125,10 @@ public:
 
 class SimdHeap : Heap {
 public:
-    SimdHeap();
-
     void push_heap(
         pair<float, int>* it_begin, pair<float, int>* it_end,
         int size_lim, pair<float, int> val
     );
-
-private:
-    __m256i sort_values[8];
 };
 
 #endif // KNN_MODEL
