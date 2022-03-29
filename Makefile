@@ -1,2 +1,6 @@
-solve:
-	g++-8 model.cpp main.cpp -o main.exe -lopenblas -Ofast -march=native && ./main.exe
+PROJECT_FILES = main.cpp matrix.cu
+EXE_FILE = main
+
+run:
+	nvcc ${PROJECT_FILES} -o ${EXE_FILE}
+	./${EXE_FILE}

@@ -1,38 +1,25 @@
-#include "model.h"
 #include <iostream>
-#include <fstream>
-#include <chrono>
-#include <cblas.h>
-#include <stdio.h>
+#include "matrix.cuh"
 
-const string dataset = "GSE128223";
+using namespace std;
 
 int main() {
-    cout << "\nDone compiling" << endl;
+    Matrix A(4, 2);
+    Matrix B(2, 4);
 
-    cout << "\nDataset: " << dataset << endl;
+    A.elements = new float[8];
+    B.elements = new float[8];
 
-    cout << "\nInputing data..." << endl;
-    KnnModel model;
-    model.ReadData("./data/" + dataset + "/inp.inp");
-    cout << "Done inputing" << endl;
+    for (int i = 0; i < 8; ++i)
+        A.elements[i] = B.elements[i] = 1;
 
-    openblas_set_num_threads(1);
+    Matrix C = Matrix::mult(A, B);
+
+    for (int i = 0; i < C.n_rows; ++i)
+        for (int j = 0; j < C.n_cols; ++j)
+            cout << C.elements[i * C.n_rows + j] << " \n"[j == C.n_cols - 1];
     
-    cout << "\nStart solving..." << endl;
-    auto start = chrono::high_resolution_clock::now();
-    model.Solve();
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::nanoseconds>(stop - start);
-    cout << "Done solving" << endl;
-    printf("Duration: %ld.%09lds", duration.count() / int(1e9), duration.count() % int(1e9));
-    cout << endl;
-
-    cout << "\nChecking results..." << endl;
-    float similarity = model.SimilarityCheck("./data/" + dataset + "/faiss_index.out", true);
-    cout << "Similarity: " << similarity << endl;
-
-    cout << "\nOutputing results..." << endl;
-    model.Output("./data/" + dataset + "/");
-    cout << "Done outputing" << endl;
+    delete[] A.elements;
+    delete[] B.elements;
+    delete[] C.elements;
 }
