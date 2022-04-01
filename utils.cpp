@@ -17,6 +17,9 @@ KnnSolver::~KnnSolver() {
 void KnnSolver::Clean() {
     if (res_indices) delete[] res_indices;
     if (res_distances) delete[] res_distances;
+
+    if (d_indices) cudaFree(d_indices);
+    if (d_distances) cudaFree(d_distances);
 }
 
 void KnnSolver::CleanOnDevice() {

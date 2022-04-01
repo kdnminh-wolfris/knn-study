@@ -7,12 +7,6 @@
 
 class KnnSolver : public KnnModel {
 protected:
-    // Matrix of points on device
-    float* d_points;
-    
-    // n-dimension vector of sums of squared dimension values for each point on device
-    float* sum_of_sqr;
-
     // An n×k row-major matrix indicating indices of k nearest neighbours to each of n
     // points
     int* res_indices = nullptr;
@@ -20,6 +14,15 @@ protected:
     // An n×k row-major matrix indicating distances of k nearest neighbours to each of
     // n points, corresponding to indices in res_indices
     float* res_distances = nullptr;
+
+    // Matrix of points on device
+    float* d_points;
+    
+    // n-dimension vector of sums of squared dimension values for each point on device
+    float* sum_of_sqr;
+
+    float* d_indices;
+    int* d_distances;
 
     /**
      * @brief Initialises some values to boost the solving process
@@ -38,7 +41,7 @@ protected:
         const int i, const float* i_block, const int i_size,
         const int j, const float* j_block, const int j_size,
         float* inner_prod, cublasHandle_t handle,
-        pair<float, int>* foo, pair<float, int>* d_foo
+        int* ind, float* dist
     );
 
     /**
@@ -84,6 +87,15 @@ __global__ void CalculateSumOfSquared(
     const int n, const int d, const float* points, float* sum_of_sqr
 );
 
-void Sort(pair<float, int>* first, pair<float, int>* last, int k);
+__global__ void GetDistInd(
+    float* dist, int* ind, const float* inner_prod,
+    const int i_size, const int j, const int j_size,
+    const float* sum_of_sqr
+);
+
+__global__ void AssignResults(
+    const int start_i, const float* dist, const int* ind,
+    const int start_j, float* res_distances, int* res_indices
+);
 
 #endif // EXACT_SOLVER
