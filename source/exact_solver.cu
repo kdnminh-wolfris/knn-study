@@ -11,17 +11,12 @@
 
 #endif
 
-#define sqr(x) (x * x)
-
 void KnnSolver::Solve() {
     PreProcessing();
     __Solve();
     PostProcessing();
     CleanOnDevice();
 }
-
-#define MAX_THREADS 512
-#define CNT_BLOCKS(n) ((n + MAX_THREADS - 1) / MAX_THREADS)
 
 void KnnSolver::PreProcessing() {
     cudaMalloc(&d_points, n * d * sizeof(float));
@@ -30,7 +25,7 @@ void KnnSolver::PreProcessing() {
     cudaMalloc(&sum_of_sqr, n * sizeof(float));
     cudaMemset(sum_of_sqr, 0, n * sizeof(float));
 
-    CalculateSumOfSquared<<<CNT_BLOCKS(n * d), MAX_THREADS>>>(n, d, d_points, sum_of_sqr);
+    CalculateSumOfSquared<<<block_cnt(n * d), MAX_THREADS>>>(n, d, d_points, sum_of_sqr);
 
     ResultInit();
 }
@@ -79,8 +74,6 @@ __global__ void ComputeRealDistances(float* res_distances, const float* sum_of_s
     __syncthreads();
     res_distances[blockIdx.x * k + threadIdx.x] += this_sum_of_sqr;
 }
-
-#define BLOCK_SIZE 1000
 
 struct StartOp {
     const int m;
@@ -145,7 +138,7 @@ void KnnSolver::__Solve() {
                 &beta, inner_prod, j_size
             );
 
-            GetDistInd<<<CNT_BLOCKS(i_size * j_size), MAX_THREADS>>>
+            GetDistInd<<<block_cnt(i_size * j_size), MAX_THREADS>>>
                 (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
 
             // SORT neighbours of each point by their distance
@@ -260,8 +253,6 @@ __global__ void AssignResults(
     res_distances[start_j + threadIdx.x] = dist[start_i + threadIdx.x];
     res_indices[start_j + threadIdx.x] = ind[start_i + threadIdx.x];
 }
-
-#define WARP_SIZE 32
 
 __host__ inline void InsertToResults(
     const float* sorted_dist, const int* sorted_ind,

@@ -5,6 +5,7 @@
 #define MAX_THREADS 512
 #define MAX_NUMBER_OF_DIMENSIONS 50
 #define MAX_NUMBER_OF_NEIGHBOURS 100
+#define BLOCK_SIZE 1000
 
 #define sqr(x) (x * x)
 #define intceildiv(x, y) ((x + y - 1) / y)
