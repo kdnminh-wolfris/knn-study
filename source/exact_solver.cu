@@ -9,6 +9,18 @@
 #include <stdio.h>
 #include <algorithm>
 
+void printArray(float* arr, int sizex, int sizey) {
+    const int size = sizex * sizey;
+    float* tmp = new float[sizex * sizey];
+    cudaMemcpy(tmp, arr, size * sizeof(float), cudaMemcpyDeviceToHost);
+
+    cout << sizex << ' ' << sizey << endl;
+    for (int i = 0; i < size; ++i)
+        cout << tmp[i] << " \n"[i % sizey == sizey - 1];
+    cout << endl;
+    delete[] tmp;
+}
+
 #endif
 
 void KnnSolver::Solve() {
@@ -25,7 +37,7 @@ void KnnSolver::PreProcessing() {
     cudaMalloc(&sum_of_sqr, n * sizeof(float));
     cudaMemset(sum_of_sqr, 0, n * sizeof(float));
 
-    CalculateSumOfSquared<<<block_cnt(n * d), MAX_THREADS>>>(n, d, d_points, sum_of_sqr);
+    CalculateSumOfSquared<<<set_block_thread(n * d)>>>(n, d, d_points, sum_of_sqr);
 
     ResultInit();
 }
@@ -75,27 +87,6 @@ __global__ void ComputeRealDistances(float* res_distances, const float* sum_of_s
     res_distances[blockIdx.x * k + threadIdx.x] += this_sum_of_sqr;
 }
 
-struct StartOp {
-    const int m;
-    __device__ int operator()(int x) const {
-        return m * x;
-    };
-};
-
-#ifdef __DEBUG__
-void printArray(float* arr, int sizex, int sizey) {
-    const int size = sizex * sizey;
-    float* tmp = new float[sizex * sizey];
-    cudaMemcpy(tmp, arr, size * sizeof(float), cudaMemcpyDeviceToHost);
-
-    cout << sizex << ' ' << sizey << endl;
-    for (int i = 0; i < size; ++i)
-        cout << tmp[i] << " \n"[i % sizey == sizey - 1];
-    cout << endl;
-    delete[] tmp;
-}
-#endif
-
 void KnnSolver::__Solve() {
     __PreProcessing();
 
@@ -107,16 +98,13 @@ void KnnSolver::__Solve() {
             const int j_size = min(BLOCK_SIZE, n - j * BLOCK_SIZE);
             const float *j_block = d_points + j * BLOCK_SIZE * d;
             
-            // CALCulate distances of each pair of points
             __Calc(i_size, i_block, j, j_size, j_block);
-
-            // SORT neighbours of each point by their distance
             __Sort(i_size, j_size);
-
-            // MERGE current k nearest neighbours of each point with the neighbours
-            // which are just calculated and sorted, and keep the k nearest in the
-            // result arrays
             __Merge(i, i_size, j, j_size);
+
+            cout << '\n' << i << ' ' << j << '\n' << endl;
+            printArray(dist, i_size, j_size);
+            printArray(d_distances, n, k);
         }
     }
     
@@ -168,9 +156,16 @@ void KnnSolver::__Calc(
         &beta, inner_prod, j_size
     );
 
-    GetDistInd<<<block_cnt(i_size * j_size), MAX_THREADS>>>
+    GetDistInd<<<set_block_thread(i_size * j_size)>>>
         (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
 }
+
+struct StartOp {
+    const int m;
+    __device__ int operator()(int x) const {
+        return m * x;
+    };
+};
 
 void KnnSolver::__Sort(const int i_size, const int j_size) {
     cub::TransformInputIterator<int, StartOp, decltype(itr)> start_itr(itr, {j_size});
@@ -199,15 +194,15 @@ void KnnSolver::__Merge(
     const int i, const int i_size,
     const int j, const int j_size
 ) {
-    for (int ii = 0, i_index = i * BLOCK_SIZE; ii < i_size; ++ii, ++i_index)
-        if (j == 0)
-            AssignResults<<<1, k>>>(
-                i == j, db_dist.Current() + ii * j_size, db_ind.Current() + ii * j_size,
-                (i * BLOCK_SIZE + ii) * k, d_distances, d_indices
-            );
-        else
-            InsertToResults(
-                db_dist.Current() + ii * j_size + (i == j), db_ind.Current() + ii * j_size + (i == j),
-                k, i_index, d_distances, d_indices
-            );
+    if (j == 0)
+        AssignResults<<<set_block_thread(i_size * k)>>>(
+            i, k, i == j, j_size, d_distances, d_indices,
+            db_dist.Current(), db_ind.Current(), i_size
+        );
+    else
+        MergeToResults<<<set_block_thread(i_size)>>>(
+            i, k, d_distances, d_indices,
+            db_dist.Current(), db_ind.Current(),
+            i == j, j_size, i_size
+        );
 }

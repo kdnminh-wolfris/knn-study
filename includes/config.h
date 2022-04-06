@@ -21,7 +21,7 @@
 #define MAX_THREADS 512
 
 // Solver model
-#define BLOCK_SIZE 1000
+#define BLOCK_SIZE 3
 
 // Flag for development stage, to be removed in production
 #define __DEBUG__

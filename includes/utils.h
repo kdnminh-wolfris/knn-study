@@ -3,6 +3,10 @@
 
 #define sqr(x) (x * x)
 #define intceildiv(x, y) ((x + y - 1) / y)
-#define block_cnt(x) intceildiv(x, MAX_THREADS)
+#define set_block_thread(x) intceildiv(x, MAX_THREADS), MAX_THREADS
+
+#define coor_init(r, c, k)                                      \
+    const int r = (blockIdx.x * MAX_THREADS + threadIdx.x) / k; \
+    const int c = (blockIdx.x * MAX_THREADS + threadIdx.x) % k
 
 #endif // __UTILS__
