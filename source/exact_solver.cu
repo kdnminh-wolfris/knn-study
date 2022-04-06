@@ -97,9 +97,33 @@ void printArray(float* arr, int sizex, int sizey) {
 #endif
 
 void KnnSolver::__Solve() {
-    //-----Initiating values and allocating memory
-    const int n_blocks = (n + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    __PreProcessing();
 
+    for (int i = 0; i < intceildiv(n, BLOCK_SIZE); ++i) {
+        const int i_size = min(BLOCK_SIZE, n - i * BLOCK_SIZE);
+        const float *i_block = d_points + i * BLOCK_SIZE * d;
+
+        for (int j = 0; j < intceildiv(n, BLOCK_SIZE); ++j) {
+            const int j_size = min(BLOCK_SIZE, n - j * BLOCK_SIZE);
+            const float *j_block = d_points + j * BLOCK_SIZE * d;
+            
+            // CALCulate distances of each pair of points
+            __Calc(i_size, i_block, j, j_size, j_block);
+
+            // SORT neighbours of each point by their distance
+            __Sort(i_size, j_size);
+
+            // MERGE current k nearest neighbours of each point with the neighbours
+            // which are just calculated and sorted, and keep the k nearest in the
+            // result arrays
+            __Merge(i, i_size, j, j_size);
+        }
+    }
+    
+    __PostProcessing();
+}
+
+void KnnSolver::__PreProcessing() {
     cublasCreate(&handle);
 
     cudaMalloc(&inner_prod, sqr(BLOCK_SIZE) * sizeof(float));
@@ -117,105 +141,9 @@ void KnnSolver::__Solve() {
     cudaHostAlloc(&tmp_i, k * sizeof(int), cudaHostAllocDefault);
     cudaMalloc(&dtmp_d, k * sizeof(float));
     cudaMalloc(&dtmp_i, k * sizeof(int));
+}
 
-    cub::CountingInputIterator<int> itr(0);
-    //-----Done initiating values and allocating memory
-
-    //-----Main part of solving
-    for (int i = 0; i < n_blocks; ++i) {
-        const int i_size = min(BLOCK_SIZE, n - i * BLOCK_SIZE);
-        const float *i_block = d_points + i * BLOCK_SIZE * d;
-
-        for (int j = 0; j < n_blocks; ++j) {
-            const int j_size = min(BLOCK_SIZE, n - j * BLOCK_SIZE);
-            const float *j_block = d_points + j * BLOCK_SIZE * d;
-            
-            // CALCulate distances of each pair of points
-            cublasSgemm(
-                handle, CUBLAS_OP_T, CUBLAS_OP_N,
-                j_size, i_size, d,
-                &alpha, j_block, d, i_block, d,
-                &beta, inner_prod, j_size
-            );
-
-            GetDistInd<<<block_cnt(i_size * j_size), MAX_THREADS>>>
-                (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
-
-            // SORT neighbours of each point by their distance
-            cub::TransformInputIterator<int, StartOp, decltype(itr)> start_itr(itr, {j_size});
-            
-            // if (i == 0 && j == 0) {
-                cub::DeviceSegmentedSort::SortPairs(
-                    nullptr, aux_size,
-                    db_dist, db_ind,
-                    i_size * j_size, i_size,
-                    start_itr, start_itr + 1
-                );
-                if (aux_size > pre_aux_size) {
-                    if (aux) cudaFree(aux);
-                    cudaMalloc(&aux, aux_size);
-                    pre_aux_size = aux_size;
-                }
-            // }
-
-            cub::DeviceSegmentedSort::SortPairs(
-                aux, aux_size,
-                db_dist, db_ind,
-                i_size * j_size, i_size,
-                start_itr, start_itr + 1
-            );
-            
-            // cout << "Block " << i << ' ' << j << endl;
-            // printArray(db_dist.Current(), i_size, j_size);
-
-            // float* tttmp_d = new float[sqr(BLOCK_SIZE)];
-            // cudaMemcpy(tttmp_d, dist, i_size * j_size * sizeof(float), cudaMemcpyDeviceToHost);
-            // for (int ii = 0; ii < i_size; ++ii)
-            //     sort(tttmp_d + ii * j_size, tttmp_d + (ii + 1) * j_size);
-            // cudaMemcpy(dist, tttmp_d, i_size * j_size * sizeof(float), cudaMemcpyHostToDevice);
-            // delete[] tttmp_d;
-
-            // MERGE current k nearest neighbours of each point with the neighbours
-            // which are just calculated and sorted, and keep the k nearest in the
-            // result arrays
-            for (int ii = 0, i_index = i * BLOCK_SIZE; ii < i_size; ++ii, ++i_index) {
-                if (j == 0)
-                    AssignResults<<<1, k>>>(
-                        i == j, db_dist.Current() + ii * j_size, db_ind.Current() + ii * j_size,
-                        (i * BLOCK_SIZE + ii) * k, d_distances, d_indices
-                    );
-                else {
-                    // for (int x = 0, y = 0, z = (i == j); x < k; ++x)
-                    //     if (z >= j_size || (y < k && res_distances[i_index * d + y] < dist[z])) {
-                    //         tmp_d[x] = res_distances[i_index * d + y];
-                    //         tmp_i[x] = res_indices[i_index * d + y];
-                    //         ++y;
-                    //     }
-                    //     else {
-                    //         tmp_d[x] = dist[z];
-                    //         tmp_i[x] = ind[z];
-                    //         ++z;
-                    //     }
-                    // cudaMemcpy(dtmp_d, tmp_d, k * sizeof(float), cudaMemcpyHostToDevice);
-                    // cudaMemcpy(dtmp_i, tmp_i, k * sizeof(float), cudaMemcpyHostToDevice);
-                    
-                    // AssignResults<<<1, k>>>(0, tmp_d, tmp_i, i_index * d, d_distances, d_indices);
-
-                    InsertToResults(
-                        db_dist.Current() + ii * j_size + (i == j), db_ind.Current() + ii * j_size + (i == j),
-                        k, i_index, d_distances, d_indices
-                    );
-
-                    // cout << "-----" << endl;
-                }
-                
-                // printArray(d_distances, n, k);
-            }
-        } // end for j
-    } // end for i
-    //-----Done solving
-
-    //-----Deallocating memory
+void KnnSolver::__PostProcessing() {
     cublasDestroy(handle);
     cudaFree(inner_prod);
     cudaFree(dist);
@@ -229,75 +157,57 @@ void KnnSolver::__Solve() {
     if (aux) cudaFree(aux);
 }
 
-__global__ void GetDistInd(
-    float* dist, int* ind, const float* inner_prod,
-    const int i_size, const int j, const int j_size,
-    const float* sum_of_sqr
+void KnnSolver::__Calc(
+    const int i_size, const float *i_block,
+    const int j, const int j_size, const float *j_block
 ) {
-    const int ii = (blockIdx.x * blockDim.x + threadIdx.x) / j_size;
-    const int jj = (blockIdx.x * blockDim.x + threadIdx.x) % j_size;
-    if (ii >= i_size) return;
+    cublasSgemm(
+        handle, CUBLAS_OP_T, CUBLAS_OP_N,
+        j_size, i_size, d,
+        &alpha, j_block, d, i_block, d,
+        &beta, inner_prod, j_size
+    );
 
-    const int x = ii * j_size + jj;
-
-    // TODO: Add shared memory for sum of squared
-
-    dist[x] = sum_of_sqr[j * BLOCK_SIZE + jj] - 2 * inner_prod[x];
-    ind[x] = j * BLOCK_SIZE + jj;
+    GetDistInd<<<block_cnt(i_size * j_size), MAX_THREADS>>>
+        (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
 }
 
-__global__ void AssignResults(
-    const int start_i, const float* dist, const int* ind,
-    const int start_j, float* res_distances, int* res_indices
-) {
-    res_distances[start_j + threadIdx.x] = dist[start_i + threadIdx.x];
-    res_indices[start_j + threadIdx.x] = ind[start_i + threadIdx.x];
-}
+void KnnSolver::__Sort(const int i_size, const int j_size) {
+    cub::TransformInputIterator<int, StartOp, decltype(itr)> start_itr(itr, {j_size});
 
-__host__ inline void InsertToResults(
-    const float* sorted_dist, const int* sorted_ind,
-    const int k, const int i, float* res_distances, int* res_indices
-) {
-    for (int x = 0; x < k; ++x)
-        InsertToResultWarp<<<1, k>>>(
-            sorted_dist + x, sorted_ind + x,
-            i * k, res_distances, res_indices
-        );
-}
-
-__global__ void InsertToResultWarp(
-    const float *insert_dist, const int *insert_ind,
-    const int start_i, float* res_distances, int* res_indices
-) {
-    const int i = threadIdx.x;
-
-    float cur_dist = res_distances[start_i + i];
-    int cur_ind = res_indices[start_i + i];
-
-    float pre_dist = __shfl_up_sync(0xffffffff, cur_dist, 1);
-    int pre_ind = __shfl_up_sync(0xffffffff, cur_ind, 1);
-
-    if (i % WARP_SIZE == 0) {
-        if (i == 0) {
-            pre_dist = *insert_dist;
-            pre_ind = *insert_ind;
-        }
-        else {
-            pre_dist = res_distances[i - 1];
-            pre_ind = res_indices[i - 1];
-        }
+    cub::DeviceSegmentedSort::SortPairs(
+        nullptr, aux_size,
+        db_dist, db_ind,
+        i_size * j_size, i_size,
+        start_itr, start_itr + 1
+    );
+    if (aux_size > pre_aux_size) {
+        if (aux) cudaFree(aux);
+        cudaMalloc(&aux, aux_size);
+        pre_aux_size = aux_size;
     }
 
-    __syncthreads();
+    cub::DeviceSegmentedSort::SortPairs(
+        aux, aux_size,
+        db_dist, db_ind,
+        i_size * j_size, i_size,
+        start_itr, start_itr + 1
+    );
+}
 
-    if (cur_dist > *insert_dist) {
-        if (pre_dist <= *insert_dist) {
-            res_distances[start_i + i] = *insert_dist;
-            res_indices[start_i + i] = *insert_ind;
-        }
-        else {
-            res_distances[start_i + i] = pre_dist;
-            res_indices[start_i + i] = pre_ind;
-        }
-    }
+void KnnSolver::__Merge(
+    const int i, const int i_size,
+    const int j, const int j_size
+) {
+    for (int ii = 0, i_index = i * BLOCK_SIZE; ii < i_size; ++ii, ++i_index)
+        if (j == 0)
+            AssignResults<<<1, k>>>(
+                i == j, db_dist.Current() + ii * j_size, db_ind.Current() + ii * j_size,
+                (i * BLOCK_SIZE + ii) * k, d_distances, d_indices
+            );
+        else
+            InsertToResults(
+                db_dist.Current() + ii * j_size + (i == j), db_ind.Current() + ii * j_size + (i == j),
+                k, i_index, d_distances, d_indices
+            );
 }

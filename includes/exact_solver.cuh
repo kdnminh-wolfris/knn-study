@@ -1,8 +1,10 @@
-#ifndef EXACT_SOLVER
-#define EXACT_SOLVER
+#ifndef __EXACT_SOLVER__
+#define __EXACT_SOLVER__
 
 #include "model.h"
 #include "config.h"
+#include "utils.h"
+#include "kernel.cuh"
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <cub/cub.cuh>
@@ -35,7 +37,49 @@ private:
     size_t aux_size;
     size_t pre_aux_size = 0;
 
+    cub::CountingInputIterator<int> itr = cub::CountingInputIterator<int>(0);
+
     inline void __Solve();
+
+    /**
+     * @brief Initiates values and allocates auxiliary memory
+     * 
+     */
+    inline void __PreProcessing();
+
+    /**
+     * @brief Deallocates auxiliary memory
+     * 
+     */
+    inline void __PostProcessing();
+
+    /**
+     * @brief Calculates distances of each pair of points in blocks i and j, and assigns
+     * them to db_dist.Current() along with corresponding indices in db_ind.Current()
+     * 
+     */
+    inline void __Calc(
+        const int i_size, const float *i_block,
+        const int j, const int j_size, const float *j_block
+    );
+    
+    /**
+     * @brief Sorts neighbours in block j of each point in block i (stored in
+     * db_dist.Current() and db_ind.Current()) by their distances
+     * 
+     */
+    inline void __Sort(const int i_size, const int j_size);
+
+    /**
+     * @brief Merges the current k nearest neighbours of each point with the neighbours
+     * which are just calculated and sorted in db_dist.Current() and db_ind.Current(),
+     * and keep the k nearest in the result arrays d_distances and d_indices
+     * 
+     */
+    inline void __Merge(
+        const int i, const int i_size,
+        const int j, const int j_size
+    );
 
 protected:
     // An n×k row-major matrix indicating indices of k nearest neighbours to each of n
@@ -107,32 +151,5 @@ public:
 
     ~KnnSolver();
 };
-
-__global__ void CalculateSumOfSquared(
-    const int n, const int d, const float* points, float* sum_of_sqr
-);
-
-__global__ void GetDistInd(
-    float* dist, int* ind, const float* inner_prod,
-    const int i_size, const int j, const int j_size,
-    const float* sum_of_sqr
-);
-
-__global__ void AssignResults(
-    const int start_i, const float* dist, const int* ind,
-    const int start_j, float* res_distances, int* res_indices
-);
-
-__host__ inline void InsertToResults(
-    const float* sorted_dist, const int* sorted_ind,
-    const int k, const int i, float* res_distances, int* res_indices
-);
-
-__global__ void InsertToResultWarp(
-    const float *insert_dist, const int *insert_ind,
-    const int start_i, float* res_distances, int* res_indices
-);
-
-__global__ void ComputeRealDistances(float* res_distances, const float* sum_of_sqr, const int k);
 
 #endif // EXACT_SOLVER

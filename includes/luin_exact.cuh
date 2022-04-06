@@ -1,5 +1,5 @@
-#ifndef LUIN_EXACT
-#define LUIN_EXACT
+#ifndef __LUIN_EXACT__
+#define __LUIN_EXACT__
 
 #include "model.h"
 #include "exact_solver.cuh"

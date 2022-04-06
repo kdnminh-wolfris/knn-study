@@ -1,6 +1,7 @@
-#ifndef KNN_MODEL
-#define KNN_MODEL
+#ifndef __KNN_MODEL__
+#define __KNN_MODEL__
 
+#include "config.h"
 #include <string>
 
 using namespace std;
