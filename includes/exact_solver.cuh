@@ -130,16 +130,29 @@ public:
 
     /**
      * @brief Checks the percentage of similar neighbour indices found of the solver
-     * results and Faiss' results
+     * results and the given answers
      * 
-     * @param path Path to the directory that contains both Faiss' result files named
-     * faiss_indices.out and faiss_distances.out
+     * @param path Path to the directory that contains both answer files named
+     * ans_indices.out and ans_distances.out
      * @param print_log Determines to or not to print out the detailed log when checking
      * results to console
      * @return The percentage of similar neighbour indices found of the solver results
-     * and Faiss' results
+     * and the given answers
      */
-    float SimilarityCheck(string path, bool print_log = true);
+    float SimilarityCheck(const string path, const bool print_log = false, const bool by_index = true);
+
+    /**
+     * @brief Calculates the total difference in distances of all points to their
+     * neigbours of the solver results and the given answers
+     * 
+     * @param path Path to the directory that contains both answer files named
+     * ans_indices.out and ans_distances.out
+     * @param print_log Determines to or not to print out the detailed log when checking
+     * results to console
+     * @return The total difference in distances of all points to their neigbours of the
+     * solver results and the given answers
+     */
+    float TotalDistanceDifferenceCheck(const string path, const bool print_log = false);
 
     /**
      * @brief Writes out the results of indices and distances of k nearest neighbours to
@@ -147,7 +160,7 @@ public:
      * 
      * @param path Path to the directory for writing out results
      */
-    void WriteResults(string path);
+    void WriteResults(const string path);
 
     ~KnnSolver();
 };

@@ -2,7 +2,7 @@
 #include "exact_solver.cuh"
 #include <fstream>
 
-void KnnModel::ReadData(string path) {
+void KnnModel::ReadData(const string path) {
     ifstream fi(path);
     fi >> n >> d >> k;
     points = new float[n * d];
@@ -11,7 +11,7 @@ void KnnModel::ReadData(string path) {
     fi.close();
 }
 
-void KnnSolver::WriteResults(string path) {
+void KnnSolver::WriteResults(const string path) {
     ofstream fo(path + "/indices.out");
     for (int i = 0; i < n * k; ++i)
         fo << res_indices[i] << " \n"[i % k == k - 1];

@@ -27,7 +27,7 @@ public:
      * 
      * @param path Path to input file
      */
-    void ReadData(string path);
+    void ReadData(const string path);
 
     ~KnnModel();
 };

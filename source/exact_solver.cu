@@ -37,7 +37,8 @@ void KnnSolver::PreProcessing() {
     cudaMalloc(&sum_of_sqr, n * sizeof(float));
     cudaMemset(sum_of_sqr, 0, n * sizeof(float));
 
-    CalculateSumOfSquared<<<set_block_thread(n * d)>>>(n, d, d_points, sum_of_sqr);
+    CalculateSumOfSquared<<<intceildiv(n, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>
+        (n, d, d_points, sum_of_sqr);
 
     ResultInit();
 }
@@ -45,25 +46,17 @@ void KnnSolver::PreProcessing() {
 __global__ void CalculateSumOfSquared(
     const int n, const int d, const float* points, float* sum_of_sqr
 ) {
-    const int i = blockIdx.x * blockDim.x + threadIdx.x;
-    const int pt = i / d;
-    const int di = i % d;
-    
-    if (pt >= n) return;
+    const int data_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
+    const int lane_id = threadIdx.x % WARP_SIZE;
 
-    const bool flag = (threadIdx.x == 0 || di == 0);
+    if (data_id >= n) return;
 
-    __shared__ float sos[MAX_THREADS];
-    if (flag) sos[threadIdx.x / d] = 0;
-    __syncthreads();
-
-    const int rpt = threadIdx.x / d; // relative point id on sos array
-
-    const float val = points[i];
-    atomicAdd(&sos[rpt], val * val);
-    __syncthreads();
-
-    if (flag) sum_of_sqr[pt] += sos[rpt];
+    float s = 0;
+    for (int i = lane_id; i < d; i += WARP_SIZE)
+        s += sqr(points[data_id * d + i]);
+    for (int offset = 1; offset < 32; offset <<= 1)
+        s += __shfl_down_sync(FULL_MASK, s, offset);
+    if (lane_id == 0) sum_of_sqr[data_id] = s;
 }
 
 void KnnSolver::ResultInit() {
@@ -102,9 +95,9 @@ void KnnSolver::__Solve() {
             __Sort(i_size, j_size);
             __Merge(i, i_size, j, j_size);
 
-            cout << '\n' << i << ' ' << j << '\n' << endl;
-            printArray(dist, i_size, j_size);
-            printArray(d_distances, n, k);
+            // cout << '\n' << i << ' ' << j << '\n' << endl;
+            // printArray(dist, i_size, j_size);
+            // printArray(d_distances, n, k);
         }
     }
     
@@ -156,7 +149,10 @@ void KnnSolver::__Calc(
         &beta, inner_prod, j_size
     );
 
-    GetDistInd<<<set_block_thread(i_size * j_size)>>>
+    // printArray(sum_of_sqr, n, 1);
+    // printArray(inner_prod, i_size, j_size);
+
+    GetDistInd<<<intceildiv(i_size, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>
         (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
 }
 
@@ -195,7 +191,7 @@ void KnnSolver::__Merge(
     const int j, const int j_size
 ) {
     if (j == 0)
-        AssignResults<<<set_block_thread(i_size * k)>>>(
+        AssignResults<<<intceildiv(i_size, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>(
             i, k, i == j, j_size, d_distances, d_indices,
             db_dist.Current(), db_ind.Current(), i_size
         );
