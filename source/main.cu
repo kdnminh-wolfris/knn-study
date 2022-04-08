@@ -6,7 +6,7 @@
 using namespace std;
 
 const string datadir = "./data/";
-const string dataset = "GSE156793";
+const string dataset = "GSE128223";
 
 int main(int argc, char** argv) {
     KnnSolver solver;
@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     solver.WriteResults(datadir + dataset);
     cout << "Done outputing" << endl;
 
-    cout << "\nChecking results to Faiss'..." << endl;
+    cout << "\nChecking results to the given answers..." << endl;
     cout << fixed << setprecision(5);
     float sim = solver.SimilarityCheck(datadir + dataset, true);
     cout << "Similarity: " << sim << endl;
