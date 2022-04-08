@@ -6,7 +6,7 @@
 using namespace std;
 
 const string datadir = "./data/";
-const string dataset = "GSE128223";
+const string dataset = "GSE125527";
 
 int main(int argc, char** argv) {
     KnnSolver solver;

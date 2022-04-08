@@ -11,34 +11,32 @@
 
 class KnnSolver : public KnnModel {
 private:
+    // cuBLAS handle instance
     cublasHandle_t handle;
     
     // cuBLAS matrix multiplication coefficients
     const float alpha = 1;
     const float beta = 0;
     
+    // Buffer for calculating inner products
     float* inner_prod;
 
-    float* dist;
-    int* ind;
-    
-    float* tdist;
-    int* tind;
-
+    // Double buffer of distances and indices of block i neigboured by block j
     cub::DoubleBuffer<float> db_dist;
     cub::DoubleBuffer<int> db_ind;
-    
-    float* tmp_d;
-    int* tmp_i;
-    float* dtmp_d;
-    int* dtmp_i;
 
+    // Auxiliary memory for sorting
     void* aux = nullptr;
     size_t aux_size;
     size_t pre_aux_size = 0;
 
+    // Counting input iterator for sorting
     cub::CountingInputIterator<int> itr = cub::CountingInputIterator<int>(0);
 
+    /**
+     * @brief Detailed algorithm of the solver
+     * 
+     */
     inline void __Solve();
 
     /**
@@ -48,7 +46,7 @@ private:
     inline void __PreProcessing();
 
     /**
-     * @brief Deallocates auxiliary memory
+     * @brief Compute actual distances and deallocates auxiliary memory
      * 
      */
     inline void __PostProcessing();
@@ -95,8 +93,11 @@ protected:
     
     // n-dimension vector of sums of squared dimension values for each point on device
     float* sum_of_sqr;
-
+    
+    // Mapped device memory of res_indices
     int* d_indices;
+
+    // Mapped device memory of res_distances
     float* d_distances;
 
     /**
@@ -105,6 +106,10 @@ protected:
      */
     inline void PreProcessing();
 
+    /**
+     * @brief Computes actual Deallocates memory on device and host
+     * 
+     */
     inline void PostProcessing();
 
     /**
@@ -119,6 +124,10 @@ protected:
      */
     void Clean();
 
+    /**
+     * @brief Cleans mapped memory on device of the solver's instance
+     * 
+     */
     void CleanOnDevice();
 
 public:

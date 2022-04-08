@@ -37,26 +37,9 @@ void KnnSolver::PreProcessing() {
     cudaMalloc(&sum_of_sqr, n * sizeof(float));
     cudaMemset(sum_of_sqr, 0, n * sizeof(float));
 
-    CalculateSumOfSquared<<<intceildiv(n, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>
-        (n, d, d_points, sum_of_sqr);
+    CalculateSumOfSquared(n, d, d_points, sum_of_sqr);
 
     ResultInit();
-}
-
-__global__ void CalculateSumOfSquared(
-    const int n, const int d, const float* points, float* sum_of_sqr
-) {
-    const int data_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
-    const int lane_id = threadIdx.x % WARP_SIZE;
-
-    if (data_id >= n) return;
-
-    float s = 0;
-    for (int i = lane_id; i < d; i += WARP_SIZE)
-        s += sqr(points[data_id * d + i]);
-    for (int offset = 1; offset < 32; offset <<= 1)
-        s += __shfl_down_sync(FULL_MASK, s, offset);
-    if (lane_id == 0) sum_of_sqr[data_id] = s;
 }
 
 void KnnSolver::ResultInit() {
@@ -68,16 +51,9 @@ void KnnSolver::ResultInit() {
 }
 
 void KnnSolver::PostProcessing() {
-    ComputeRealDistances<<<n, k>>>(d_distances, sum_of_sqr, k);
+    ComputeActualDistances(n, d_distances, sum_of_sqr, k);
     cudaMemcpy(res_distances, d_distances, n * k * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpy(res_indices, d_indices, n * k * sizeof(int), cudaMemcpyDeviceToHost);
-}
-
-__global__ void ComputeRealDistances(float* res_distances, const float* sum_of_sqr, const int k) {
-    __shared__ float this_sum_of_sqr;
-    if (threadIdx.x == 0) this_sum_of_sqr = sum_of_sqr[blockIdx.x];
-    __syncthreads();
-    res_distances[blockIdx.x * k + threadIdx.x] += this_sum_of_sqr;
 }
 
 void KnnSolver::__Solve() {
@@ -109,32 +85,18 @@ void KnnSolver::__PreProcessing() {
 
     cudaMalloc(&inner_prod, sqr(BLOCK_SIZE) * sizeof(float));
 
-    cudaMalloc(&dist, sqr(BLOCK_SIZE) * sizeof(float));
-    cudaMalloc(&ind, sqr(BLOCK_SIZE) * sizeof(int));
+    db_dist.selector = 0;
+    cudaMalloc(&db_dist.d_buffers[0], sqr(BLOCK_SIZE) * sizeof(float));
+    cudaMalloc(&db_dist.d_buffers[1], sqr(BLOCK_SIZE) * sizeof(float));
 
-    cudaMalloc(&tdist, sqr(BLOCK_SIZE) * sizeof(float));
-    cudaMalloc(&tind, sqr(BLOCK_SIZE) * sizeof(int));
-
-    db_dist = {dist, tdist};
-    db_ind = {ind, tind};
-
-    cudaHostAlloc(&tmp_d, k * sizeof(float), cudaHostAllocDefault);
-    cudaHostAlloc(&tmp_i, k * sizeof(int), cudaHostAllocDefault);
-    cudaMalloc(&dtmp_d, k * sizeof(float));
-    cudaMalloc(&dtmp_i, k * sizeof(int));
+    db_ind.selector = 0;
+    cudaMalloc(&db_ind.d_buffers[0], sqr(BLOCK_SIZE) * sizeof(int));
+    cudaMalloc(&db_ind.d_buffers[1], sqr(BLOCK_SIZE) * sizeof(int));
 }
 
 void KnnSolver::__PostProcessing() {
     cublasDestroy(handle);
     cudaFree(inner_prod);
-    cudaFree(dist);
-    cudaFree(ind);
-    cudaFree(tdist);
-    cudaFree(tind);
-    cudaFreeHost(tmp_d);
-    cudaFreeHost(tmp_i);
-    cudaFree(dtmp_d);
-    cudaFree(dtmp_i);
     if (aux) cudaFree(aux);
 }
 
@@ -149,11 +111,10 @@ void KnnSolver::__Calc(
         &beta, inner_prod, j_size
     );
 
-    // printArray(sum_of_sqr, n, 1);
-    // printArray(inner_prod, i_size, j_size);
-
-    GetDistInd<<<intceildiv(i_size, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>
-        (db_dist.Current(), db_ind.Current(), inner_prod, i_size, j, j_size, sum_of_sqr);
+    GetDistInd(
+        db_dist.Current(), db_ind.Current(),
+        inner_prod, i_size, j, j_size, sum_of_sqr
+    );
 }
 
 struct StartOp {
@@ -191,14 +152,15 @@ void KnnSolver::__Merge(
     const int j, const int j_size
 ) {
     if (j == 0)
-        AssignResults<<<intceildiv(i_size, MAX_THREADS / WARP_SIZE), MAX_THREADS>>>(
-            i, k, i == j, j_size, d_distances, d_indices,
-            db_dist.Current(), db_ind.Current(), i_size
+        AssignResults(
+            i, i_size, j, j_size,
+            k, d_distances, d_indices,
+            db_dist.Current(), db_ind.Current()
         );
     else
-        MergeToResults<<<set_block_thread(i_size)>>>(
-            i, k, d_distances, d_indices,
-            db_dist.Current(), db_ind.Current(),
-            i == j, j_size, i_size
+        MergeToResults(
+            i, i_size, j, j_size,
+            k, d_distances, d_indices,
+            db_dist.Current(), db_ind.Current()
         );
 }

@@ -19,6 +19,7 @@
 // GPU architecture
 #define WARP_SIZE 32
 #define MAX_THREADS 512
+#define DATA_ROWS_PER_BLOCK (MAX_THREADS/WARP_SIZE)
 
 // Solver model
 #define BLOCK_SIZE 8192

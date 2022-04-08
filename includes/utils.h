@@ -3,7 +3,8 @@
 
 #define sqr(x) (x * x)
 #define intceildiv(x, y) (((x) + (y) - 1) / (y))
-#define set_block_thread(x) intceildiv(x, MAX_THREADS), MAX_THREADS
+#define linearly_distribute(x) intceildiv(x, MAX_THREADS), MAX_THREADS
+#define block_16x32_distribute(x) intceildiv(x, MAX_THREADS / WARP_SIZE), MAX_THREADS
 
 #define coor_init(r, c, k)                                      \
     const int r = (blockIdx.x * MAX_THREADS + threadIdx.x) / k; \

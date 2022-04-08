@@ -4,7 +4,35 @@
 #include <stdio.h>
 #endif
 
-__global__ void GetDistInd(
+__global__ void __CalculateSumOfSquared(
+    const int n, const int d, const float* points, float* sum_of_sqr) {
+    const int data_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
+    const int lane_id = threadIdx.x % WARP_SIZE;
+
+    if (data_id >= n) return;
+
+    float s = 0;
+    for (int i = lane_id; i < d; i += WARP_SIZE)
+        s += sqr(points[data_id * d + i]);
+    for (int offset = 1; offset < 32; offset <<= 1)
+        s += __shfl_down_sync(FULL_MASK, s, offset);
+    if (lane_id == 0) sum_of_sqr[data_id] = s;
+}
+
+__global__ void __ComputeActualDistances(
+    float* res_distances, const float* sum_of_sqr, const int k) {
+    const int i = blockIdx.x * MAX_THREADS + threadIdx.x;
+
+    __shared__ float sqrsum[MAX_THREADS];
+    const int relative_id = i / k - blockIdx.x * MAX_THREADS / k;
+    if (threadIdx.x == 0 || i % k == 0)
+        sqrsum[relative_id] = sum_of_sqr[i / k];
+    __syncthreads();
+
+    res_distances[i] += sqrsum[relative_id];
+}
+
+__global__ void __GetDistInd(
     float *dist, int *ind, const float *inner_prod,
     const int i_size, const int j, const int j_size,
     const float *sum_of_sqr
@@ -22,21 +50,12 @@ __global__ void GetDistInd(
     }
 }
 
-__global__ void AssignResults(
+__global__ void __AssignResults(
     const int i, const int k,
     const int row_start, const int row_stride,
     float *res_distances, int *res_indices,
     const float *dist, const int *ind, const int n_pts
 ) {
-    // coor_init(r, c, k);
-    // const int rid = (i * BLOCK_SIZE + r) * k + c;
-    // const int bid = r * row_stride + row_start + c;
-
-    // if (r >= n_pts) return;
-    
-    // res_distances[rid] = dist[bid];
-    // res_indices[rid] = ind[bid];
-
     const int row_id = blockIdx.x * blockDim.x / WARP_SIZE + threadIdx.x / WARP_SIZE;
     const int lane_id = threadIdx.x % WARP_SIZE;
 
@@ -52,7 +71,7 @@ __global__ void AssignResults(
     }
 }
 
-__global__ void MergeToResults(
+__global__ void __MergeToResults(
     const int i, const int k,
     float *res_distances, int *res_indices,
     const float *dist, const int *ind,
