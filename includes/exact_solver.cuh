@@ -21,14 +21,15 @@ private:
     // Buffer for calculating inner products
     float* inner_prod;
 
-    // Double buffer of distances and indices of block i neigboured by block j
-    cub::DoubleBuffer<float> db_dist;
-    cub::DoubleBuffer<int> db_ind;
-
     // Auxiliary memory for sorting
     void* aux = nullptr;
     size_t aux_size;
     size_t pre_aux_size = 0;
+
+    float *d_dist;
+
+    float *d_heap_dist;
+    int *d_heap_ind;
 
     // Counting input iterator for sorting
     cub::CountingInputIterator<int> itr = cub::CountingInputIterator<int>(0);
@@ -78,6 +79,8 @@ private:
         const int i, const int i_size,
         const int j, const int j_size
     );
+
+    inline void __Push_Heap(const int i, const int j, const int i_size, const int j_size);
 
 protected:
     // An n×k row-major matrix indicating indices of k nearest neighbours to each of n

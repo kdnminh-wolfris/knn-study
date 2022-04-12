@@ -36,7 +36,7 @@ __global__ void __ComputeActualDistances(
 }
 
 __global__ void __GetDistInd(
-    float *dist, int *ind, const float *inner_prod,
+    float *dist, const float *inner_prod,
     const int i_size, const int j, const int j_size,
     const float *sum_of_sqr
 ) {
@@ -44,66 +44,66 @@ __global__ void __GetDistInd(
     const int jj = j * BLOCK_SIZE + ij % j_size;
     if (ij >= i_size * j_size) return;
     dist[ij] = sum_of_sqr[jj] - 2 * inner_prod[ij];
-    ind[ij] = jj;
 }
 
-__global__ void __AssignResults(
-    const int i, const int k,
-    const int row_start, const int row_stride,
-    float *res_distances, int *res_indices,
-    const float *dist, const int *ind, const int n_pts
+__global__ void __DownHeap(
+    const int k, float *heap_dist, int *heap_ind,
+    const int block_i, const int block_j,
+    const int i_size, const int j_size,
+    const float *dist
 ) {
-    const int ij = blockIdx.x * MAX_THREADS + threadIdx.x;
-    if (ij >= n_pts * k) return;
+    const int data_id = blockIdx.x * blockDim.x / 32 + threadIdx.x / 32;
+    const int point_id = block_i * BLOCK_SIZE + data_id;
+    const int lane_id = threadIdx.x % 32;
+    if (data_id >= i_size) return;
+    
+    heap_dist += point_id * k;
+    heap_ind += point_id * k;
 
-    const int res_ij = i * BLOCK_SIZE * k + ij;
-    const int matrix_ij = ij / k * row_stride + row_start + ij % k;
+    for (int j = 0; j < j_size; ++j) {
+        if (point_id == block_j * BLOCK_SIZE + j) continue;
 
-    res_distances[res_ij] = dist[matrix_ij];
-    res_indices[res_ij] = ind[matrix_ij];
-}
+        const int ptr = data_id * j_size + j;
+        const int cur_dist = dist[ptr];
+        if (heap_dist[0] <= dist[ptr]) continue;
 
-__global__ void __MergeToResults(
-    const int i, const int k,
-    float *res_distances, int *res_indices,
-    const float *dist, const int *ind,
-    const int row_start, const int row_stride, const int n_pts
-) {
-    if (blockIdx.x * MAX_THREADS + threadIdx.x >= n_pts) return;
+        int heap_par = 0;
+        int heap_ptr = 1;
+        while (true) {
+            // printf("%d %d %d %d %d\n", block_i, block_j, data_id, lane_id, heap_ptr);
+            if (heap_ptr >= k) break;
 
-    const int pt = (i * BLOCK_SIZE + blockIdx.x * MAX_THREADS + threadIdx.x) * k;
-    res_distances += pt;
-    res_indices += pt;
-    const int bp = (blockIdx.x * MAX_THREADS + threadIdx.x) * row_stride; // block point
-    dist += bp + row_start;
-    ind += bp + row_start;
+            float max_dist = heap_ptr + lane_id >= k ? -INFINITY : heap_dist[heap_ptr + lane_id];
+            int max_lane = lane_id;
+            for (int offset = 1; offset < 32; offset *= 2) {
+                float next_dist = __shfl_down_sync(FULL_MASK, max_dist, offset);
+                int next_lane = __shfl_down_sync(FULL_MASK, max_lane, offset);
+                if (max_dist < next_dist) {
+                    max_dist = next_dist;
+                    max_lane = next_lane;
+                }
+            }
 
-    int p1 = 0, p2 = 0, lim2 = row_stride - row_start;
-    float d1 = res_distances[0];
-    float d2 = dist[0];
+            max_dist = __shfl_sync(FULL_MASK, max_dist, 0);
+            if (max_dist <= cur_dist) break;
 
-    while (p1 + p2 < k)
-        if (p2 == lim2 || d1 <= d2) {
-            if ((++p1) + p2 < k)
-                d1 = res_distances[p1];
-        }
-        else {
-            if (p1 + (++p2) < k && p2 < lim2)
-                d2 = dist[p2];
-        }
+            if (lane_id == 0) {
+                heap_dist[heap_par] = max_dist;
+                heap_ind[heap_par] = heap_ind[heap_ptr + max_lane];
+                heap_par = heap_ptr + max_lane;
+                heap_ptr = heap_par * 32 + 1;
+            }
+            heap_par = __shfl_sync(FULL_MASK, heap_par, 0);
+            heap_ptr = __shfl_sync(FULL_MASK, heap_ptr, 0);
+        } // end while
 
-    d1 = res_distances[--p1];
-    d2 = dist[--p2];
-    for (int x = k - 1; x >= 0; --x) {
-        if (p2 == -1 || (p1 > -1 && d1 > d2)) {
-            res_distances[x] = d1;
-            res_indices[x] = res_indices[p1--];
-            if (p1 > -1) d1 = res_distances[p1];
-        }
-        else {
-            res_distances[x] = d2;
-            res_indices[x] = ind[p2--];
-            if (p2 > -1) d2 = dist[p2];
+        if (lane_id == 0) {
+            heap_dist[heap_par] = cur_dist;
+            heap_ind[heap_par] = block_j * BLOCK_SIZE + j;
         }
     }
+}
+
+__global__ void AssignInfinity(float *a) {
+    a[blockIdx.x * MAX_THREADS + threadIdx.x] = INFINITY;
 }
