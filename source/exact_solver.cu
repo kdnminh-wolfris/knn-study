@@ -59,21 +59,18 @@ void KnnSolver::PostProcessing() {
 void KnnSolver::__Solve() {
     __PreProcessing();
 
-    for (int i = 0; i < intceildiv(n, BLOCK_SIZE); ++i) {
+    const int n_blocks = intceildiv(n, BLOCK_SIZE);
+    for (int i = 0; i < n_blocks; ++i) {
         const int i_size = min(BLOCK_SIZE, n - i * BLOCK_SIZE);
         const float *i_block = d_points + i * BLOCK_SIZE * d;
 
-        for (int j = 0; j < intceildiv(n, BLOCK_SIZE); ++j) {
+        for (int j = 0; j < n_blocks; ++j) {
             const int j_size = min(BLOCK_SIZE, n - j * BLOCK_SIZE);
             const float *j_block = d_points + j * BLOCK_SIZE * d;
             
             __Calc(i_size, i_block, j, j_size, j_block);
             __Sort(i_size, j_size);
             __Merge(i, i_size, j, j_size);
-
-            // cout << '\n' << i << ' ' << j << '\n' << endl;
-            // printArray(dist, i_size, j_size);
-            // printArray(d_distances, n, k);
         }
     }
     
@@ -98,6 +95,10 @@ void KnnSolver::__PostProcessing() {
     cublasDestroy(handle);
     cudaFree(inner_prod);
     if (aux) cudaFree(aux);
+    cudaFree(db_dist.d_buffers[0]);
+    cudaFree(db_dist.d_buffers[1]);
+    cudaFree(db_ind.d_buffers[0]);
+    cudaFree(db_ind.d_buffers[1]);
 }
 
 void KnnSolver::__Calc(

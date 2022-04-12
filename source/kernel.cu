@@ -5,23 +5,26 @@
 #endif
 
 __global__ void __CalculateSumOfSquared(
-    const int n, const int d, const float* points, float* sum_of_sqr) {
-    const int data_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
+    const int n, const int d, const float *points, float *sum_of_sqr
+) {
+    const int point_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
     const int lane_id = threadIdx.x % WARP_SIZE;
 
-    if (data_id >= n) return;
+    if (point_id >= n) return;
 
     float s = 0;
     for (int i = lane_id; i < d; i += WARP_SIZE)
-        s += sqr(points[data_id * d + i]);
+        s += sqr(points[point_id * d + i]);
     for (int offset = 1; offset < 32; offset <<= 1)
         s += __shfl_down_sync(FULL_MASK, s, offset);
-    if (lane_id == 0) sum_of_sqr[data_id] = s;
+    if (lane_id == 0) sum_of_sqr[point_id] = s;
 }
 
 __global__ void __ComputeActualDistances(
-    float* res_distances, const float* sum_of_sqr, const int k) {
+    float *res_distances, const float *sum_of_sqr, const int n, const int k
+) {
     const int i = blockIdx.x * MAX_THREADS + threadIdx.x;
+    if (i / k >= n) return;
 
     __shared__ float sqrsum[MAX_THREADS];
     const int relative_id = i / k - blockIdx.x * MAX_THREADS / k;
@@ -37,17 +40,11 @@ __global__ void __GetDistInd(
     const int i_size, const int j, const int j_size,
     const float *sum_of_sqr
 ) {
-    const int point_id = blockIdx.x * MAX_THREADS / WARP_SIZE + threadIdx.x / WARP_SIZE;
-    const int lane_id = threadIdx.x % WARP_SIZE;
-
-    if (point_id >= i_size) return;
-
-    for (int col = lane_id; col < j_size; col += WARP_SIZE) {
-        const int ij = point_id * j_size + col;
-        const int jj = j * BLOCK_SIZE + col;
-        dist[ij] = sum_of_sqr[jj] - 2 * inner_prod[ij];
-        ind[ij] = jj;
-    }
+    const int ij = blockIdx.x * MAX_THREADS + threadIdx.x;
+    const int jj = j * BLOCK_SIZE + ij % j_size;
+    if (ij >= i_size * j_size) return;
+    dist[ij] = sum_of_sqr[jj] - 2 * inner_prod[ij];
+    ind[ij] = jj;
 }
 
 __global__ void __AssignResults(
@@ -56,19 +53,14 @@ __global__ void __AssignResults(
     float *res_distances, int *res_indices,
     const float *dist, const int *ind, const int n_pts
 ) {
-    const int row_id = blockIdx.x * blockDim.x / WARP_SIZE + threadIdx.x / WARP_SIZE;
-    const int lane_id = threadIdx.x % WARP_SIZE;
+    const int ij = blockIdx.x * MAX_THREADS + threadIdx.x;
+    if (ij >= n_pts * k) return;
 
-    if (row_id >= n_pts) return;
+    const int res_ij = i * BLOCK_SIZE * k + ij;
+    const int matrix_ij = ij / k * row_stride + row_start + ij % k;
 
-    const int point_ptr = (i * BLOCK_SIZE + row_id) * k;
-    const int row_ptr = row_id * row_stride;
-
-    for (int col = lane_id; col < row_start + k; col += WARP_SIZE) {
-        if (col < row_start) continue;
-        res_distances[point_ptr + col - row_start] = dist[row_ptr + col];
-        res_indices[point_ptr + col - row_start] = ind[row_ptr + col];
-    }
+    res_distances[res_ij] = dist[matrix_ij];
+    res_indices[res_ij] = ind[matrix_ij];
 }
 
 __global__ void __MergeToResults(
