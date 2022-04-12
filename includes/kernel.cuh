@@ -11,7 +11,7 @@ __global__ void __CalculateSumOfSquared(
 );
 
 #define ComputeActualDistances(n, d_distances, d_sum_of_sqr, k)                      \
-    __ComputeActualDistances<<<linearly_distribute(n)>>>(d_distances, d_sum_of_sqr, n, k)
+    __ComputeActualDistances<<<linearly_distribute(n * k)>>>(d_distances, d_sum_of_sqr, n, k)
 __global__ void __ComputeActualDistances(
     float *res_distances, const float *sum_of_sqr, const int n, const int k
 );
