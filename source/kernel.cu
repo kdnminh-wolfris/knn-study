@@ -27,7 +27,7 @@ __global__ void __ComputeActualDistances(
     const int id = blockIdx.x * blockDim.x + threadIdx.x;
     if (id / k >= n) return;
 
-    __shared__ float sum[blockDim.x];
+    __shared__ float sum[MAX_THREADS];
     const int relative_point_id = id / k - blockIdx.x * blockDim.x / k;
     if (threadIdx.x == 0 || id % k == 0)
         sum[relative_point_id] = sum_of_sqr[id / k];
@@ -36,84 +36,54 @@ __global__ void __ComputeActualDistances(
     res_distances[id] += sum[relative_point_id];
 }
 
-__global__ void __GetDistInd(
-    float *dist, const float *inner_prod,
-    const int i_size, const int j, const int j_size,
-    const float *sum_of_sqr
+__global__ void __GetDistances(
+    const int j_id, const int i_size, const int j_size,
+    const float *inner_prod, const float *sum_of_sqr,
+    float *dist
 ) {
-    // const int ii = blockIdx.x * blockDim.x / WARP_SIZE + threadIdx.x / WARP_SIZE;
-    // const int lane_id = threadIdx.x % WARP_SIZE;
-    // __shared__ float sum[128 * WARP_SIZE];
-
-    // int k = 0;
-    // int j_ext = intceildiv(j_size, 512) * 512;
-    // for (int jj = lane_id; jj < j_ext; jj += WARP_SIZE) {
-    //     if (k % 128 == 0) {
-    //         __syncthreads();
-    //         for (int i = threadIdx.x; i < min(j_size - k * 32, 128 * 32); i += blockDim.x) {
-    //             sum[i] = sum_of_sqr[j * BLOCK_SIZE + i + k * 32];
-    //         }
-    //         __syncthreads();
-    //     }
-    //     ++k;
-    //     if (ii < i_size && jj < j_size)
-    //         dist[ii * j_size + jj] = sum[jj % (128 * 32)] - 2 * inner_prod[ii * j_size + jj];
-    // }
-
-    // #define ROW_SIZE 32
-    // const int row_id =
-    //     (blockIdx.x / intceildiv(j_size, ROW_SIZE)) * blockDim.x / ROW_SIZE
-    //     + threadIdx.x / ROW_SIZE;
-    // const int col_id =
-    //     (blockIdx.x % intceildiv(j_size, ROW_SIZE)) * ROW_SIZE
-    //     + threadIdx.x % ROW_SIZE;
-    // if (row_id >= i_size || col_id >= j_size) return;
-    
-    // __shared__ float sum[ROW_SIZE];
-    // if (threadIdx.x / ROW_SIZE == 0)
-    //     sum[threadIdx.x % ROW_SIZE] = sum_of_sqr[j * BLOCK_SIZE + col_id];
-    // __syncthreads();
-
-    // const int ij = row_id * j_size + col_id;
-    // dist[ij] = sum[threadIdx.x % ROW_SIZE] - 2 * inner_prod[ij];
-
-    const int ij = blockIdx.x * MAX_THREADS + threadIdx.x;
+    const int ij = blockIdx.x * blockDim.x + threadIdx.x;
     if (ij >= i_size * j_size) return;
 
-    const int jj = j * BLOCK_SIZE + ij % j_size;
-    dist[ij] = sum_of_sqr[jj] - 2 * inner_prod[ij];
+    const int j_ptr = j_id * BLOCK_SIZE + ij % j_size;
+    dist[ij] = sum_of_sqr[j_ptr] - 2 * inner_prod[ij];
 }
 
-__global__ void __DownHeap(
-    const int k, float *heap_dist, int *heap_ind,
-    const int block_i, const int block_j,
+__global__ void __PushHeap(
+    const int k,
+    float *heap_dist, int *heap_ind,
+    const int i_id, const int j_id,
     const int i_size, const int j_size,
     const float *dist
 ) {
-    const int data_id = blockIdx.x * blockDim.x / 32 + threadIdx.x / 32;
-    const int point_id = block_i * BLOCK_SIZE + data_id;
-    const int lane_id = threadIdx.x % 32;
+    const int data_id = blockIdx.x * blockDim.x / WARP_SIZE + threadIdx.x / WARP_SIZE;
     if (data_id >= i_size) return;
+
+    const int lane_id = threadIdx.x % WARP_SIZE;
+    const int point_id = i_id * BLOCK_SIZE + data_id;
     
+    // Align pointers
     heap_dist += point_id * k;
     heap_ind += point_id * k;
 
     for (int j = 0; j < j_size; ++j) {
-        if (point_id == block_j * BLOCK_SIZE + j) continue;
+        // Ignore a point neighbouring itself
+        if (point_id == j_id * BLOCK_SIZE + j) continue;
 
-        const int ptr = data_id * j_size + j;
-        const float cur_dist = dist[ptr];
-        if (heap_dist[0] <= dist[ptr]) continue;
+        const int ij = data_id * j_size + j;
+        const float insert_dist = dist[ij];
+        // Ignore if inserting distance isn't smaller than current heap top
+        if (heap_dist[0] <= insert_dist) continue;
 
-        int heap_par = 0;
-        int heap_ptr = 1;
-        while (true) {
-            // printf("%d %d %d %d %d\n", block_i, block_j, data_id, lane_id, heap_ptr);
-            if (heap_ptr >= k) break;
+        int parent_ptr = 0;
+        int children_ptr = 1;
+        while (children_ptr < k) {
+            float max_dist =
+                children_ptr + lane_id < k ?
+                heap_dist[children_ptr + lane_id] : -INFINITY;
 
-            float max_dist = heap_ptr + lane_id >= k ? -INFINITY : heap_dist[heap_ptr + lane_id];
+            // Get child node with maximum distance
             int max_lane = lane_id;
-            for (int offset = 1; offset < 32; offset *= 2) {
+            for (int offset = 1; offset < 32; offset <<= 1) {
                 float next_dist = __shfl_down_sync(FULL_MASK, max_dist, offset);
                 int next_lane = __shfl_down_sync(FULL_MASK, max_lane, offset);
                 if (max_dist < next_dist) {
@@ -123,25 +93,29 @@ __global__ void __DownHeap(
             }
 
             max_dist = __shfl_sync(FULL_MASK, max_dist, 0);
-            if (max_dist <= cur_dist) break;
+            if (max_dist <= insert_dist) break;
 
+            // Move child heap node with max distance up and update pointers
             if (lane_id == 0) {
-                heap_dist[heap_par] = max_dist;
-                heap_ind[heap_par] = heap_ind[heap_ptr + max_lane];
-                heap_par = heap_ptr + max_lane;
-                heap_ptr = heap_par * 32 + 1;
+                heap_dist[parent_ptr] = max_dist;
+                heap_ind[parent_ptr] = heap_ind[children_ptr + max_lane];
+                parent_ptr = children_ptr + max_lane;
+                children_ptr = parent_ptr * WARP_SIZE + 1;
             }
-            heap_par = __shfl_sync(FULL_MASK, heap_par, 0);
-            heap_ptr = __shfl_sync(FULL_MASK, heap_ptr, 0);
+            parent_ptr = __shfl_sync(FULL_MASK, parent_ptr, 0);
+            children_ptr = __shfl_sync(FULL_MASK, children_ptr, 0);
         } // end while
-
+        
+        // Insert current distance and index into heap
         if (lane_id == 0) {
-            heap_dist[heap_par] = cur_dist;
-            heap_ind[heap_par] = block_j * BLOCK_SIZE + j;
+            heap_dist[parent_ptr] = insert_dist;
+            heap_ind[parent_ptr] = j_id * BLOCK_SIZE + j;
         }
-    }
+    } // end for
 }
 
-__global__ void AssignInfinity(float *a) {
-    a[blockIdx.x * MAX_THREADS + threadIdx.x] = INFINITY;
+__global__ void __AssignInfinity(const int size, float *a) {
+    const int id = blockIdx.x * MAX_THREADS + threadIdx.x;
+    if (id >= size) return;
+    a[id] = INFINITY;
 }
