@@ -40,6 +40,6 @@ __global__ void __PushHeap(
 
 #define AssignInfinity(n, k, d_heap_dist)                                               \
     __AssignInfinity<<<linearly_distribute(n * k)>>>(n * k, d_heap_dist)
-__global__ void __AssignInfinity(const int size, float *a);
+__global__ void __AssignInfinity(const int size, float *arr);
 
 #endif // __KERNEL__
