@@ -17,6 +17,7 @@ void KnnSolver::WriteResults(const string path) {
     for (int i = 0; i < n * k; ++i)
         fo << res_indices[i] << " \n"[i % k == k - 1];
     fo.close();
+
     fo.open(path + "/distances.out");
     for (int i = 0; i < n; ++i) {
         sort(res_distances + i * k, res_distances + (i + 1) * k);

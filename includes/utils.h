@@ -12,4 +12,6 @@
 
 #define FULL_MASK 0xffffffff
 
+#define extend_(x, y) (intceildiv(x, y) * y)
+
 #endif // __UTILS__

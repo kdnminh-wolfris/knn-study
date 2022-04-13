@@ -26,7 +26,6 @@ float KnnSolver::SimilarityCheck(const string path, const bool print_log, const 
     if (by_index) {
         // Read answers to check
         int* ans_indices = faiss_data_read<int>(path + "/ans_indices.out", n, k);
-        float* ans_distances = faiss_data_read<float>(path + "/ans_distances.out", n, k);
         
         // Check outputs
         int* foo = new int[k];
@@ -38,23 +37,17 @@ float KnnSolver::SimilarityCheck(const string path, const bool print_log, const 
             sort(foo, foo + k);
             sort(ans_indices + i * k, ans_indices + (i + 1) * k);
             
-            int m = 0;
             for (int j1 = 0, j2 = 0; j1 < k; ++j1) {
                 for (; j2 < k && foo[j1] > ans_indices[i * k + j2]; ++j2);
                 if (j2 < k && foo[j1] == ans_indices[i * k + j2]) {
-                    ++m; ++matched; ++j2;
+                    ++matched; ++j2;
                 }
             }
-            cout << m << ' ';
-
-            // sort(res_distances + i * k, res_distances + (i + 1) * k);
-            cout << res_distances[i * k + k - 2] << ' ' << res_distances[i * k + k - 1] << ' ' << ans_distances[i * k + k - 2] << ' ' << ans_distances[i * k + k - 1] << '\n';
         }
         delete[] foo;
 
         // Deallocate memory
         delete[] ans_indices;
-        delete[] ans_distances;
     }
     else {
         // Read answers to check
