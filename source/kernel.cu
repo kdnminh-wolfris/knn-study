@@ -114,8 +114,8 @@ __global__ void __PushHeap(
     } // end for
 }
 
-__global__ void __AssignInfinity(const int size, float *a) {
+__global__ void __AssignInfinity(const int size, float *arr) {
     const int id = blockIdx.x * MAX_THREADS + threadIdx.x;
     if (id >= size) return;
-    a[id] = INFINITY;
+    arr[id] = INFINITY;
 }
